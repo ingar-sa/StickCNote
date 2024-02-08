@@ -17,11 +17,15 @@
 
 #include "utils.hpp"
 
-internal constexpr i64 WM_TRAYICON = (WM_USER + 1);
+
+// NOTE(ingar): These should probably be refactored into an enum, so we don't manually have to perform the enumeration
+internal constexpr WORD WM_TRAYICON = (WM_USER + 1);
 internal constexpr WORD ID_TRAY_EXIT = 2222;
 internal constexpr WORD ID_TRAY_APP_ICON = 2223;
+internal constexpr WORD ID_TRAY_SHOW = 2224;
 
 internal NOTIFYICONDATA NotifyIconData = {0};
+internal HICON AppIcon = {0};
 
 static struct app_mem
 {
@@ -66,19 +70,18 @@ Win32GetWindowDimensions(HWND Window)
 
 
 internal void
-Win32AddTrayIcon(HWND hWnd)
-{
-    memset(&NotifyIconData, 0, sizeof(NOTIFYICONDATA));
+Win32AddTrayIcon(HWND Window)
+{ memset(&NotifyIconData, 0, sizeof(NOTIFYICONDATA));
     
     NotifyIconData.cbSize = sizeof(NOTIFYICONDATA);
-    NotifyIconData.hWnd = hWnd;
-    NotifyIconData.uID = ID_TRAY_APP_ICON; // Identifier of the icon
+    NotifyIconData.hWnd = Window;
+    NotifyIconData.uID = ID_TRAY_APP_ICON; 
     NotifyIconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    NotifyIconData.uCallbackMessage = WM_TRAYICON; // Custom message to process tray icon events
-    NotifyIconData.hIcon = LoadIcon(NULL, IDI_APPLICATION); // Load a standard icon for the tray
-    lstrcpy(NotifyIconData.szTip, TEXT("Ughhhhh... sticky...")); // Tooltip for the tray icon
+    NotifyIconData.uCallbackMessage = WM_TRAYICON; 
+    NotifyIconData.hIcon = AppIcon; 
+    lstrcpy(NotifyIconData.szTip, TEXT("Ughhhhh... sticky...")); 
 
-    Shell_NotifyIcon(NIM_ADD, &NotifyIconData); // Add the icon to the system tray
+    Shell_NotifyIcon(NIM_ADD, &NotifyIconData); 
 }
 
 internal void
@@ -121,8 +124,8 @@ Win32MainWindowCallback(HWND Window,
                         WPARAM WParams,
                         LPARAM LParams)
 {
-        LRESULT CallbackResult = 0;
-    
+    LRESULT CallbackResult = 0;
+
     switch(SystemMessage)
     {
         case WM_TRAYICON:
@@ -134,50 +137,61 @@ Win32MainWindowCallback(HWND Window,
 
                 HMENU Menu = CreatePopupMenu();
                 InsertMenu(Menu, 0, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, TEXT("Exit"));
-
-                SetForegroundWindow(Window);
+                InsertMenu(Menu, 0, MF_BYPOSITION | MF_STRING, ID_TRAY_SHOW, TEXT("Show"));
+                
                 TrackPopupMenu(Menu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, Point.x, Point.y, 0, Window, NULL);
                 DestroyMenu(Menu);
             }
-        } break;
+            else if(LParams == WM_LBUTTONDOWN)
+            {
+                ShowWindow(Window, SW_SHOW);
+            }
+        }
+        break;
 
         case WM_COMMAND:
         {
-            if (LOWORD(WParams) == ID_TRAY_EXIT)
+            switch(LOWORD(WParams))
             {
-                Shell_NotifyIcon(NIM_DELETE, &NotifyIconData); // Remove tray icon
-                PostQuitMessage(0);
+                case ID_TRAY_EXIT:
+                {
+                    PostQuitMessage(0);
+                }
+                break;
+
+                case ID_TRAY_SHOW:
+                {
+                    ShowWindow(Window, SW_SHOW);
+                }
+                break;
+               
             }
         } break;
         case WM_CLOSE:
         {
-            // TODO(ingar): Handle this with a confirmation box?
-            //              Correct disconnection from the cloud back-end might be necessary.
-            //OmsOutputDebugString(TEXT("Windows has sent a WM_CLOSE message through the callback function\n"));
-            /*
-            if(MessageBox(Window, TEXT("Really quit?"), TEXT("My application"), MB_OKCANCEL) == IDOK)
-            {
-                DestroyWindow(Window);
-            }
-            */
-            PostQuitMessage(0);
-        } break;
+            Win32AddTrayIcon(Window);
+            ShowWindow(Window, SW_HIDE);
+        }
+        break;
         
         case WM_DESTROY:
         {
             // TODO(ingar): Handle this as an error - recreate window?
             PostQuitMessage(0);
-        } break;
+        }
+        break;
         
         case WM_ACTIVATEAPP:
         {
-        } break;
+        }
+        break;
 
             case WM_SIZE:
         {
             win32_window_dims Dimensions = Win32GetWindowDimensions(Window);
             Win32ResizeDibSection(&AppMem, &WindowBuffer, Dimensions.Width, Dimensions.Height);
-        } break;
+        }
+        break;
 
         case WM_PAINT:
         {
@@ -187,19 +201,22 @@ Win32MainWindowCallback(HWND Window,
             win32_window_dims Dimensions = Win32GetWindowDimensions(Window);
             Win32UpdateWindow(PaintContext, &WindowBuffer, Dimensions.Width, Dimensions.Height);
             EndPaint(Window, &Paint);
-        } break;
+        }
+        break;
 
         case WM_HOTKEY:
         case WM_KEYDOWN:
         {
-            DebugPrint("A key was pressed down!\n");
+            //DebugPrint("A key was pressed down!\n");
 
-        } break;
+        }
+        break;
         case WM_KEYUP:
         default:
         {
             CallbackResult = DefWindowProc(Window, SystemMessage, WParams, LParams);
-        } break;
+        }
+        break;
     }
     
     return CallbackResult;
@@ -234,12 +251,12 @@ WinMain(HINSTANCE Instance,
                    "This application only supports one instance!\n");
         return FALSE;
     }
-    
+
     HWND Window = {}; 
     Window = CreateWindowEx(0,
                             WindowClass.lpszClassName,
                             TEXT("stickCnote"),
-                            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                            WS_OVERLAPPEDWINDOW, // | WS_VISIBLE,
                             CW_USEDEFAULT, CW_USEDEFAULT,
                             CW_USEDEFAULT, CW_USEDEFAULT,
                             0,0,
@@ -251,6 +268,21 @@ WinMain(HINSTANCE Instance,
         PrintLastError(TEXT("CreateWindowEx"));
         return FALSE; 
     }
+
+    AppIcon = (HICON)LoadImage(NULL,
+                                  TEXT("W:/stickCnote/resources/icon_default.ico"),
+                                  IMAGE_ICON,
+                                  0, 0,
+                                  LR_LOADFROMFILE | LR_DEFAULTSIZE);
+    if(!AppIcon)
+    {
+        PrintLastError(TEXT("LoadImage"));
+        return FALSE;
+    }
+
+    SendMessage(Window, WM_SETICON, ICON_BIG, (LPARAM)AppIcon);
+
+    Win32AddTrayIcon(Window);
 
 #ifndef NOms_DEBUG
     LPVOID BaseAddressPermanentMem = (LPVOID)Terabytes(1);
