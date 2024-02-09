@@ -1,0 +1,2 @@
+
+   #define your own functions "STBTT_malloc" / "STBTT_free" to avoid malloc.h

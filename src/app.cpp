@@ -1,3 +1,8 @@
+/*
+ * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
+*/
+
+
 #include "isa.hpp"
 #include "app.hpp"
 

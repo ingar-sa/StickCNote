@@ -1,15 +1,6 @@
 // stb_truetype.h - v1.26 - public domain
 // authored from 2009-2021 by Sean Barrett / RAD Game Tools
 //
-// =======================================================================
-//
-//    NO SECURITY GUARANTEE -- DO NOT USE THIS ON UNTRUSTED FONT FILES
-//
-// This library does no range checking of the offsets found in the file,
-// meaning an attacker can use it to read arbitrary memory.
-//
-// =======================================================================
-//
 //   This library processes TrueType files:
 //        parse files
 //        extract glyph metrics
@@ -26,76 +17,6 @@
 //        optimize: build edge-list directly from curves
 //        optimize: rasterize directly from curves?
 //
-// ADDITIONAL CONTRIBUTORS
-//
-//   Mikko Mononen: compound shape support, more cmap formats
-//   Tor Andersson: kerning, subpixel rendering
-//   Dougall Johnson: OpenType / Type 2 font handling
-//   Daniel Ribeiro Maciel: basic GPOS-based kerning
-//
-//   Misc other:
-//       Ryan Gordon
-//       Simon Glass
-//       github:IntellectualKitty
-//       Imanol Celaya
-//       Daniel Ribeiro Maciel
-//
-//   Bug/warning reports/fixes:
-//       "Zer" on mollyrocket       Fabian "ryg" Giesen   github:NiLuJe
-//       Cass Everitt               Martins Mozeiko       github:aloucks
-//       stoiko (Haemimont Games)   Cap Petschulat        github:oyvindjam
-//       Brian Hook                 Omar Cornut           github:vassvik
-//       Walter van Niftrik         Ryan Griege
-//       David Gow                  Peter LaValle
-//       David Given                Sergey Popov
-//       Ivan-Assen Ivanov          Giumo X. Clanjor
-//       Anthony Pesch              Higor Euripedes
-//       Johan Duparc               Thomas Fields
-//       Hou Qiming                 Derek Vinyard
-//       Rob Loach                  Cort Stratton
-//       Kenney Phillis Jr.         Brian Costabile
-//       Ken Voskuil (kaesve)
-//
-// VERSION HISTORY
-//
-//   1.26 (2021-08-28) fix broken rasterizer
-//   1.25 (2021-07-11) many fixes
-//   1.24 (2020-02-05) fix warning
-//   1.23 (2020-02-02) query SVG data for glyphs; query whole kerning table (but only kern not GPOS)
-//   1.22 (2019-08-11) minimize missing-glyph duplication; fix kerning if both 'GPOS' and 'kern' are defined
-//   1.21 (2019-02-25) fix warning
-//   1.20 (2019-02-07) PackFontRange skips missing codepoints; GetScaleFontVMetrics()
-//   1.19 (2018-02-11) GPOS kerning, STBTT_fmod
-//   1.18 (2018-01-29) add missing function
-//   1.17 (2017-07-23) make more arguments const; doc fix
-//   1.16 (2017-07-12) SDF support
-//   1.15 (2017-03-03) make more arguments const
-//   1.14 (2017-01-16) num-fonts-in-TTC function
-//   1.13 (2017-01-02) support OpenType fonts, certain Apple fonts
-//   1.12 (2016-10-25) suppress warnings about casting away const with -Wcast-qual
-//   1.11 (2016-04-02) fix unused-variable warning
-//   1.10 (2016-04-02) user-defined fabs(); rare memory leak; remove duplicate typedef
-//   1.09 (2016-01-16) warning fix; avoid crash on outofmem; use allocation userdata properly
-//   1.08 (2015-09-13) document stbtt_Rasterize(); fixes for vertical & horizontal edges
-//   1.07 (2015-08-01) allow PackFontRanges to accept arrays of sparse codepoints;
-//                     variant PackFontRanges to pack and render in separate phases;
-//                     fix stbtt_GetFontOFfsetForIndex (never worked for non-0 input?);
-//                     fixed an assert() bug in the new rasterizer
-//                     replace assert() with STBTT_assert() in new rasterizer
-//
-//   Full history can be found at the end of this file.
-//
-// LICENSE
-//
-//   See end of file for license information.
-//
-// USAGE
-//
-//   Include this file in whatever places need to refer to it. In ONE C/C++
-//   file, write:
-//      #define STB_TRUETYPE_IMPLEMENTATION
-//   before the #include of this file. This expands out the actual
-//   implementation into that C/C++ file.
 //
 //   To make the implementation private to the file that generates the implementation,
 //      #define STBTT_STATIC

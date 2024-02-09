@@ -1,3 +1,7 @@
+/*
+ * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
+*/
+
 #pragma once
 
 

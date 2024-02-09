@@ -2,12 +2,16 @@
  * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
 */
 
+
 #include "isa.hpp"
 
 #include "utils.hpp"
 #include "app.hpp"
 
 #include "consts.hpp"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
 
 #include <stdio.h>
 #include <stdlib.h>
