@@ -12,10 +12,10 @@ struct app_mem
 {
     bool Initialized;
 
-    u64   PermanentMemSize;
+    size_t   PermanentMemSize;
     void *Permanent;
 
-    u64   WorkMemSize;
+    size_t   WorkMemSize;
     void *Work;
 };
 
@@ -38,7 +38,7 @@ enum mouse_event
     MOUSE_INVALID,
 };
 
-#define RESPOND_TO_MOUSE_HOVER(name) void name(POINT CursorPos)
+#define RESPOND_TO_MOUSE_HOVER(name) void name(i64 x, i64 y)
 typedef RESPOND_TO_MOUSE_HOVER(respond_to_mouse_hover);
 
 extern "C" RESPOND_TO_MOUSE_HOVER(RespondToMouseHoverStub)
@@ -46,7 +46,7 @@ extern "C" RESPOND_TO_MOUSE_HOVER(RespondToMouseHoverStub)
     DebugPrint("RespondToMouseHoverStub was called!\n");
 }
 
-#define RESPOND_TO_MOUSE_CLICK(name) void name(enum mouse_event Event, POINT CursorPos)
+#define RESPOND_TO_MOUSE_CLICK(name) void name(enum mouse_event Event, i64 x, i64 y)
 typedef RESPOND_TO_MOUSE_CLICK(respond_to_mouse_click);
 
 extern "C" RESPOND_TO_MOUSE_CLICK(RespondToMouseClickStub)

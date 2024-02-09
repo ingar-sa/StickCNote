@@ -10,6 +10,8 @@
 
 #include "consts.hpp"
 
+#include "mem.cpp"
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
@@ -379,14 +381,14 @@ Win32MainWindowCallback(HWND Window,
             POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
             enum mouse_event MouseEvent = WmToMouseEvent(SystemMessage);
 
-            App.RespondToMouseClick(MouseEvent, CursorPos);
+            App.RespondToMouseClick(MouseEvent, CursorPos.x, CursorPos.y);
         }
         break;
 
         case WM_MOUSEMOVE:
         {
             POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
-            App.RespondToMouseHover(CursorPos);
+            App.RespondToMouseHover(CursorPos.x, CursorPos.y);
         }
         break;
         case WM_COMMAND:

@@ -22,14 +22,14 @@ static u32_argb BgColor = {};
 // void name(UINT WmCommand, POINT CursorPos)
 extern "C" RESPOND_TO_MOUSE_CLICK(RespondToMouseClick)
 {
-    BgColor.R = (u8)CursorPos.y;
-    BgColor.G = (u8)CursorPos.x;
-    BgColor.B = (u8)CursorPos.x - (u8)CursorPos.y;
+    BgColor.R = (u8)y;
+    BgColor.G = (u8)x;
+    BgColor.B = (u8)x - (u8)y;
 }
 
 extern "C" RESPOND_TO_MOUSE_HOVER(RespondToMouseHover)
 {
-    BgColor.R = (u8)CursorPos.y;
+    BgColor.R = (u8)y;
     //BgColor.G = (u8)CursorPos.x + (u8)CursorPos.y;
     //BgColor.B = (u8)CursorPos.x - (u8)CursorPos.y;
 }
