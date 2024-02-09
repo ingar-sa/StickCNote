@@ -5,18 +5,6 @@
 #include <strsafe.h>
 #include <debugapi.h>
 #include <errhandlingapi.h>
-#include <stdint.h>
-#include <assert.h>
-
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef int8_t   i8;
-typedef int16_t  i16;
-typedef int32_t  i32;
-typedef int64_t  i64;
 
 #define DebugPrint(...) OutputDebugStringA(__VA_ARGS__)
 
@@ -55,9 +43,9 @@ PrintLastError(LPCWSTR FuncThatSetError)
 #define local_persist static
 #define global_variable static
 
-#define Kilobytes(Value) ((Value) * 1024ULL)
-#define Megabytes(Value) (Kilobytes(Value) * 1024ULL)
-#define Gigabytes(Value) (Megabytes(Value) * 1024ULL)
-#define Terabytes(Value) (Gigabytes(Value) * 1024ULL)
+#define KiloBytes(Value) ((Value) * 1024ULL)
+#define MegaBytes(Value) (KiloBytes(Value) * 1024ULL)
+#define GigaBytes(Value) (MegaBytes(Value) * 1024ULL)
+#define TeraBytes(Value) (GigaBytes(Value) * 1024ULL)
 
 

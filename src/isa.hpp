@@ -394,7 +394,7 @@ isaPrintAllAllocations(void)
         }
     }
 
-    printf("\nDBEUG: There are %lu remaining allocations\n\n", Collection->AllocationCount);
+    printf("\nDBEUG: There are %llu remaining allocations\n\n", Collection->AllocationCount);
 }
 
 ////////////////////////////////////////
@@ -1354,9 +1354,9 @@ ISA__AssertTrace(bool Expression, const char *ExpressionString, int Line, const 
 #endif // ISA_DO_LOG_DEBUG
 
 #if ISA_ASSERT_TRACE
-#define isaAssert(Expression) ISA__AssertTrace(Expression, #Expression, __LINE__, __func__, __FILE__)
+#define IsaAssert(Expression) ISA__AssertTrace(Expression, #Expression, __LINE__, __func__, __FILE__)
 #else
-#define isaAssert(Expression) assert(Expression)
+#define IsaAssert(Expression) assert(Expression)
 #endif
 
 

@@ -4,7 +4,7 @@ setlocal
 IF NOT EXIST build mkdir build
 
 cd build
-main.exe
+win32_main.exe
 
 endlocal
 exit

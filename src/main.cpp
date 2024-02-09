@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include <windows.h>
 #include <winuser.h>
 #include <tchar.h>
@@ -19,15 +18,33 @@
 
 
 // NOTE(ingar): These should probably be refactored into an enum, so we don't manually have to perform the enumeration
+
+enum : WORD
+{
+    WM_TRAY_ICON = (WM_USER + 1),
+    ID_TRAY_EXIT,
+    ID_TRAY_SHOW,
+    ID_TRAY_APP_ICON,
+
+    WIN32_COMMANDS_FINAL,
+    NUM_COMMANDS = WIN32_COMMANDS_FINAL - WM_TRAY_ICON
+};
+
+/*
 internal constexpr WORD WM_TRAYICON = (WM_USER + 1);
 internal constexpr WORD ID_TRAY_EXIT = 2222;
 internal constexpr WORD ID_TRAY_APP_ICON = 2223;
 internal constexpr WORD ID_TRAY_SHOW = 2224;
+*/
 
-internal NOTIFYICONDATA NotifyIconData = {0};
-internal HICON AppIcon = {0};
+internal struct win32_data
+{
+    NOTIFYICONDATA NotifyIconData = {0};
+    HICON AppIcon = {0};
 
-static struct app_mem
+} AppData;
+
+internal struct app_mem
 {
     bool Initialized;
 
@@ -49,6 +66,7 @@ internal struct window_buffer
     i64 BytesPerPixel = 4;
 
     void *Mem;
+
 } WindowBuffer;
 
 struct win32_window_dims
@@ -62,6 +80,7 @@ Win32GetWindowDimensions(HWND Window)
 {
     RECT ClientRect;
     GetClientRect(Window, &ClientRect);
+
     i64 Width = ClientRect.right - ClientRect.left;
     i64 Height = ClientRect.bottom - ClientRect.top;
 
@@ -71,23 +90,26 @@ Win32GetWindowDimensions(HWND Window)
 
 internal void
 Win32AddTrayIcon(HWND Window)
-{ memset(&NotifyIconData, 0, sizeof(NOTIFYICONDATA));
-    
-    NotifyIconData.cbSize = sizeof(NOTIFYICONDATA);
-    NotifyIconData.hWnd = Window;
-    NotifyIconData.uID = ID_TRAY_APP_ICON; 
-    NotifyIconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    NotifyIconData.uCallbackMessage = WM_TRAYICON; 
-    NotifyIconData.hIcon = AppIcon; 
-    lstrcpy(NotifyIconData.szTip, TEXT("Ughhhhh... sticky...")); 
+{ 
+    NOTIFYICONDATA IconData = AppData.NotifyIconData;
 
-    Shell_NotifyIcon(NIM_ADD, &NotifyIconData); 
+    memset(&IconData, 0, sizeof(NOTIFYICONDATA));
+    
+    IconData.cbSize = sizeof(NOTIFYICONDATA);
+    IconData.hWnd = Window;
+    IconData.uID = ID_TRAY_APP_ICON; 
+    IconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    IconData.uCallbackMessage = WM_TRAY_ICON; 
+    IconData.hIcon = AppData.AppIcon; 
+    lstrcpy(IconData.szTip, TEXT("StickCNote")); 
+
+    Shell_NotifyIcon(NIM_ADD, &IconData); 
 }
 
 internal void
 Win32RemoveTrayIcon()
 {
-    Shell_NotifyIcon(NIM_DELETE, &NotifyIconData); // Remove the icon from the system tray
+    Shell_NotifyIcon(NIM_DELETE, &AppData.NotifyIconData); // Remove the icon from the system tray
 }
 
 internal void
@@ -99,6 +121,7 @@ Win32ResizeDibSection(app_mem *Mem, window_buffer *Buffer, i64 Width, i64 Height
     Buffer->DIBInfo.bmiHeader.biSize = sizeof(Buffer->DIBInfo.bmiHeader);
     Buffer->DIBInfo.bmiHeader.biWidth = Buffer->Width;
     Buffer->DIBInfo.bmiHeader.biHeight = -Buffer->Height; // - to start at the top of the screen
+                                                          //
     Buffer->DIBInfo.bmiHeader.biPlanes = 1;
     Buffer->DIBInfo.bmiHeader.biBitCount = 32;
     Buffer->DIBInfo.bmiHeader.biCompression = BI_RGB;
@@ -128,7 +151,7 @@ Win32MainWindowCallback(HWND Window,
 
     switch(SystemMessage)
     {
-        case WM_TRAYICON:
+        case WM_TRAY_ICON:
         {
             if (LParams == WM_RBUTTONDOWN)
             {
@@ -186,7 +209,7 @@ Win32MainWindowCallback(HWND Window,
         }
         break;
 
-            case WM_SIZE:
+        case WM_SIZE:
         {
             win32_window_dims Dimensions = Win32GetWindowDimensions(Window);
             Win32ResizeDibSection(&AppMem, &WindowBuffer, Dimensions.Width, Dimensions.Height);
@@ -211,7 +234,9 @@ Win32MainWindowCallback(HWND Window,
 
         }
         break;
+
         case WM_KEYUP:
+
         default:
         {
             CallbackResult = DefWindowProc(Window, SystemMessage, WParams, LParams);
@@ -236,7 +261,7 @@ WinMain(HINSTANCE Instance,
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
     //WindowClass.hIcon = ; // TODO(Ingar): We need to fill this in when we have an icon!
-    WindowClass.lpszClassName = TEXT("stickCnoteWindowClass");
+    WindowClass.lpszClassName = TEXT("StickCNoteWindowClass");
     
     if(!RegisterClassEx(&WindowClass))
     {
@@ -244,7 +269,7 @@ WinMain(HINSTANCE Instance,
         return FALSE;
     }
 
-    HANDLE ProgramInstanceMutex = CreateMutex(NULL, FALSE, TEXT("stickCnoteProgramMutex"));
+    HANDLE ProgramInstanceMutex = CreateMutex(NULL, FALSE, TEXT("StickCNoteProgramMutex"));
     if(GetLastError() == ERROR_ALREADY_EXISTS)
     {
         DebugPrint("An instance of the application already exists."
@@ -255,7 +280,7 @@ WinMain(HINSTANCE Instance,
     HWND Window = {}; 
     Window = CreateWindowEx(0,
                             WindowClass.lpszClassName,
-                            TEXT("stickCnote"),
+                            TEXT("StickCNote"),
                             WS_OVERLAPPEDWINDOW, // | WS_VISIBLE,
                             CW_USEDEFAULT, CW_USEDEFAULT,
                             CW_USEDEFAULT, CW_USEDEFAULT,
@@ -269,18 +294,19 @@ WinMain(HINSTANCE Instance,
         return FALSE; 
     }
 
-    AppIcon = (HICON)LoadImage(NULL,
-                                  TEXT("W:/stickCnote/resources/icon_default.ico"),
-                                  IMAGE_ICON,
-                                  0, 0,
-                                  LR_LOADFROMFILE | LR_DEFAULTSIZE);
-    if(!AppIcon)
+    AppData.AppIcon = (HICON)LoadImage(NULL,
+                      TEXT("W:/StickCNote/resources/icon_default.ico"),
+                      IMAGE_ICON,
+                      0, 0,
+                      LR_LOADFROMFILE | LR_DEFAULTSIZE);
+
+    if(!AppData.AppIcon)
     {
         PrintLastError(TEXT("LoadImage"));
         return FALSE;
     }
 
-    SendMessage(Window, WM_SETICON, ICON_BIG, (LPARAM)AppIcon);
+    SendMessage(Window, WM_SETICON, ICON_BIG, (LPARAM)AppData.AppIcon);
 
     Win32AddTrayIcon(Window);
 
