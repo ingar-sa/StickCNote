@@ -33,7 +33,8 @@ internal struct app_data
 
     update_back_buffer *UpdateBackBuffer;
     respond_to_mouse_click *RespondToMouseClick;
-    
+    respond_to_mouse_hover *RespondToMouseHover;  
+
     bool CodeLoaded;
 
 } AppData;
@@ -45,7 +46,7 @@ internal struct win32_data
 
 } Win32Data;
 
-enum : WORD
+enum :  UINT 
 {
     WM_TRAY_ICON = (WM_USER + 1),
     ID_TRAY_EXIT,
@@ -192,6 +193,7 @@ Win32LoadAppData(void) // TODO(ingar): Pass file path as argument?
 
     update_back_buffer  *UpdateBackbuffer = (update_back_buffer *)GetProcAddress(Dll, "UpdateBackBuffer");
     respond_to_mouse_click *RespondToMouseClick = (respond_to_mouse_click *)GetProcAddress(Dll, "RespondToMouseClick");
+    respond_to_mouse_hover *RespondToMouseHover = (respond_to_mouse_hover *)GetProcAddress(Dll, "RespondToMouseHover");
     if(!UpdateBackbuffer)
     {
         PrintLastError(TEXT("GetProcAddress"));
@@ -201,6 +203,7 @@ Win32LoadAppData(void) // TODO(ingar): Pass file path as argument?
     AppData.Dll = Dll;
     AppData.UpdateBackBuffer = UpdateBackbuffer;
     AppData.RespondToMouseClick = RespondToMouseClick;
+    AppData.RespondToMouseHover = RespondToMouseHover;
     AppData.CodeLoaded = true;
     
     return true;
@@ -351,9 +354,17 @@ Win32MainWindowCallback(HWND Window,
         case WM_RBUTTONDOWN:
         case WM_RBUTTONUP:
         {
+            POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
+            AppData.RespondToMouseClick(SystemMessage, CursorPos);
         }
         break;
 
+        case WM_MOUSEMOVE:
+        {
+            POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
+            AppData.RespondToMouseHover(CursorPos);
+        }
+        break;
         case WM_COMMAND:
         {
             switch(LOWORD(WParams))
