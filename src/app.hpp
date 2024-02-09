@@ -8,8 +8,6 @@
 #include "isa.hpp"
 #include "utils.hpp"
 
-#include <WinUser.h>
-
 struct app_mem
 {
     bool Initialized;
@@ -30,6 +28,16 @@ struct offscreen_buffer
     void *Mem;
 };
 
+enum mouse_event
+{
+    MOUSE_LDOWN,
+    MOUSE_LUP,
+    MOUSE_RDOWN,
+    MOUSE_RUP,
+
+    MOUSE_INVALID,
+};
+
 #define RESPOND_TO_MOUSE_HOVER(name) void name(POINT CursorPos)
 typedef RESPOND_TO_MOUSE_HOVER(respond_to_mouse_hover);
 
@@ -38,7 +46,7 @@ extern "C" RESPOND_TO_MOUSE_HOVER(RespondToMouseHoverStub)
     DebugPrint("RespondToMouseHoverStub was called!\n");
 }
 
-#define RESPOND_TO_MOUSE_CLICK(name) void name(UINT WmCommand, POINT CursorPos)
+#define RESPOND_TO_MOUSE_CLICK(name) void name(enum mouse_event Event, POINT CursorPos)
 typedef RESPOND_TO_MOUSE_CLICK(respond_to_mouse_click);
 
 extern "C" RESPOND_TO_MOUSE_CLICK(RespondToMouseClickStub)

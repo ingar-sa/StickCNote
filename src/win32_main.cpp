@@ -41,14 +41,14 @@ internal struct app_data
 
     bool CodeLoaded;
 
-} AppData;
+} App;
 
 internal struct win32_data
 { 
     NOTIFYICONDATA NotifyIconData = {0};
     HICON AppIcon = {0};
 
-} Win32Data;
+} Win32;
 
 enum :  UINT 
 {
@@ -164,31 +164,31 @@ Win32GetLastWriteTime(const TCHAR *Filename)
 }
 
 internal void
-Win32UnloadAppData(void)
+Win32UnloadAppCode(void)
 {
-    if(AppData.Dll)
+    if(App.Dll)
     {
-        FreeLibrary(AppData.Dll);
-        AppData.Dll= 0;
+        FreeLibrary(App.Dll);
+        App.Dll= 0;
     }
 
-    AppData.CodeLoaded = false;
-    AppData.UpdateBackBuffer = NULL;
+    App.CodeLoaded = false;
+    App.UpdateBackBuffer = NULL;
 }
 
 internal bool
-Win32LoadAppData(void) // TODO(ingar): Pass file path as argument?
+Win32LoadAppCode(void) // TODO(ingar): Pass file path as argument?
 {
-    Win32UnloadAppData();
+    Win32UnloadAppCode();
 
-    bool CopySucceeded = CopyFile(AppData.DllName, AppData.TempDllName, FALSE);
+    bool CopySucceeded = CopyFile(App.DllName, App.TempDllName, FALSE);
     if(!CopySucceeded)
     {
         PrintLastError(TEXT("CopyFile"));
         return false;
     }
 
-    HMODULE Dll = LoadLibraryExW(AppData.TempDllName, 0, 0);
+    HMODULE Dll = LoadLibraryExW(App.TempDllName, 0, 0);
     if(!Dll)
     {
         PrintLastError(TEXT("LoadLibraryExW)"));
@@ -204,29 +204,29 @@ Win32LoadAppData(void) // TODO(ingar): Pass file path as argument?
         return false; //{0};
     }
 
-    AppData.Dll = Dll;
-    AppData.UpdateBackBuffer = UpdateBackbuffer;
-    AppData.RespondToMouseClick = RespondToMouseClick;
-    AppData.RespondToMouseHover = RespondToMouseHover;
-    AppData.CodeLoaded = true;
+    App.Dll = Dll;
+    App.UpdateBackBuffer = UpdateBackbuffer;
+    App.RespondToMouseClick = RespondToMouseClick;
+    App.RespondToMouseHover = RespondToMouseHover;
+    App.CodeLoaded = true;
     
     return true;
 }
 
 VOID CALLBACK
-Win32UpdateAppDataTimer(HWND Window, UINT Message, UINT_PTR TimerId, DWORD Time)
+Win32UpdateAppCodeTimer(HWND Window, UINT Message, UINT_PTR TimerId, DWORD Time)
 {
-    FILETIME LastFileTime = Win32GetLastWriteTime(AppData.DllName);
+    FILETIME LastFileTime = Win32GetLastWriteTime(App.DllName);
     
-    if(CompareFileTime(&LastFileTime, &AppData.LastWriteTime))
+    if(CompareFileTime(&LastFileTime, &App.LastWriteTime))
     {
         DebugPrint("Write time is newere!\n");
 
-        bool Success = Win32LoadAppData(); 
+        bool Success = Win32LoadAppCode(); 
         if(Success)
         {
             DebugPrint("Successfully updated Oms code in timer\n");    
-            AppData.LastWriteTime = LastFileTime;
+            App.LastWriteTime = LastFileTime;
             
         }
     }
@@ -252,7 +252,7 @@ Win32GetWindowDimensions(HWND Window)
 internal void
 Win32AddTrayIcon(HWND Window)
 { 
-    NOTIFYICONDATA IconData = Win32Data.NotifyIconData;
+    NOTIFYICONDATA IconData = Win32.NotifyIconData;
 
     memset(&IconData, 0, sizeof(NOTIFYICONDATA));
     
@@ -261,7 +261,7 @@ Win32AddTrayIcon(HWND Window)
     IconData.uID = ID_TRAY_APP_ICON; 
     IconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     IconData.uCallbackMessage = WM_TRAY_ICON; 
-    IconData.hIcon = Win32Data.AppIcon; 
+    IconData.hIcon = Win32.AppIcon; 
     lstrcpy(IconData.szTip, TEXT("StickCNote")); 
 
     Shell_NotifyIcon(NIM_ADD, &IconData); 
@@ -270,7 +270,7 @@ Win32AddTrayIcon(HWND Window)
 internal void
 Win32RemoveTrayIcon()
 {
-    Shell_NotifyIcon(NIM_DELETE, &Win32Data.NotifyIconData); // Remove the icon from the system tray
+    Shell_NotifyIcon(NIM_DELETE, &Win32.NotifyIconData); // Remove the icon from the system tray
 }
 
 internal void
@@ -287,7 +287,7 @@ Win32ResizeDibSection(LONG Width, LONG Height)
     WindowBuffer.DIBInfo.bmiHeader.biBitCount = 32;
     WindowBuffer.DIBInfo.bmiHeader.biCompression = BI_RGB;
 
-    WindowBuffer.Mem = AppData.Mem.Work; 
+    WindowBuffer.Mem = App.Mem.Work; 
 }
 
 internal void
@@ -303,7 +303,7 @@ Win32UpdateWindow(HDC DeviceContext,  LONG Width, LONG Height)
     BackBuffer.Mem = WindowBuffer.Mem;
     BackBuffer.BytesPerPixel = WindowBuffer.BytesPerPixel;
 
-    AppData.UpdateBackBuffer(BackBuffer);
+    App.UpdateBackBuffer(BackBuffer);
 
     StretchDIBits(DeviceContext,
                   0, 0, Width, Height,
@@ -320,6 +320,24 @@ Win32RedrawWindowTimer(HWND Window, UINT Message, UINT_PTR TimerId, DWORD Time)
     win32_window_dims WindowDimensions = Win32GetWindowDimensions(Window);
     Win32UpdateWindow(DeviceContext, WindowDimensions.Width, WindowDimensions.Height);
     ReleaseDC(Window, DeviceContext);
+}
+
+internal enum mouse_event
+WmToMouseEvent(UINT Wm)
+{
+    switch(Wm)
+    {
+        case WM_LBUTTONDOWN:
+            return MOUSE_LDOWN;
+        case WM_LBUTTONUP:
+            return MOUSE_LUP;
+        case WM_RBUTTONDOWN:
+            return MOUSE_RDOWN;
+        case WM_RBUTTONUP:
+            return MOUSE_RUP;
+        default:
+            return MOUSE_INVALID;
+    }
 }
 
 LRESULT CALLBACK
@@ -359,14 +377,16 @@ Win32MainWindowCallback(HWND Window,
         case WM_RBUTTONUP:
         {
             POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
-            AppData.RespondToMouseClick(SystemMessage, CursorPos);
+            enum mouse_event MouseEvent = WmToMouseEvent(SystemMessage);
+
+            App.RespondToMouseClick(MouseEvent, CursorPos);
         }
         break;
 
         case WM_MOUSEMOVE:
         {
             POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
-            AppData.RespondToMouseHover(CursorPos);
+            App.RespondToMouseHover(CursorPos);
         }
         break;
         case WM_COMMAND:
@@ -509,25 +529,25 @@ WinMain(HINSTANCE Instance,
         return FALSE; 
     }
 
-    Win32Data.AppIcon = (HICON)LoadImage(NULL,
+    Win32.AppIcon = (HICON)LoadImage(NULL,
                       TEXT("W:/StickCNote/resources/icon_default.ico"),
                       IMAGE_ICON,
                       0, 0,
                       LR_LOADFROMFILE | LR_DEFAULTSIZE);
-    if(!Win32Data.AppIcon)
+    if(!Win32.AppIcon)
     {
         PrintLastError(TEXT("LoadImage"));
         return FALSE;
     }
 
-    SendMessage(Window, WM_SETICON, ICON_BIG, (LPARAM)Win32Data.AppIcon);
+    SendMessage(Window, WM_SETICON, ICON_BIG, (LPARAM)Win32.AppIcon);
 
     Win32AddTrayIcon(Window);
 
-    AppendToEXEFilePathTchar(APP_DLL_NAME_TEXT, AppData.DllName, MAX_PATH);
-    AppendToEXEFilePathTchar(APP_DLL_TEMP_NAME_TEXT, AppData.TempDllName, MAX_PATH);
+    AppendToEXEFilePathTchar(APP_DLL_NAME_TEXT, App.DllName, MAX_PATH);
+    AppendToEXEFilePathTchar(APP_DLL_TEMP_NAME_TEXT, App.TempDllName, MAX_PATH);
 
-    bool Succeded = Win32LoadAppData();
+    bool Succeded = Win32LoadAppCode();
     if(!Succeded)
     {
         return FALSE;
@@ -541,24 +561,24 @@ WinMain(HINSTANCE Instance,
     LPVOID BaseAddressWorkMem = 0;
 #endif
 
-    AppData.Mem.PermanentMemSize = MegaBytes(64);
-    AppData.Mem.Permanent = VirtualAlloc(BaseAddressPermanentMem, AppData.Mem.PermanentMemSize, 
+    App.Mem.PermanentMemSize = MegaBytes(64);
+    App.Mem.Permanent = VirtualAlloc(BaseAddressPermanentMem, App.Mem.PermanentMemSize, 
                                              MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    AppData.Mem.WorkMemSize = MegaBytes(128);
-    AppData.Mem.Work = VirtualAlloc(BaseAddressWorkMem, AppData.Mem.WorkMemSize, 
+    App.Mem.WorkMemSize = MegaBytes(128);
+    App.Mem.Work = VirtualAlloc(BaseAddressWorkMem, App.Mem.WorkMemSize, 
                                         MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    if(!(AppData.Mem.Permanent && AppData.Mem.Work))
+    if(!(App.Mem.Permanent && App.Mem.Work))
     {
         PrintLastError(TEXT("VirtualAlloc"));
         return FALSE;
     }
 
-    AppData.Mem.Initialized = true;
+    App.Mem.Initialized = true;
 
     
-    UINT_PTR AppDataTimerId = SetTimer(Window, 1, 50, &Win32UpdateAppDataTimer);
+    UINT_PTR AppDataTimerId = SetTimer(Window, 1, 50, &Win32UpdateAppCodeTimer);
     if(!AppDataTimerId)
     {
         PrintLastError(TEXT("SetTimer"));
