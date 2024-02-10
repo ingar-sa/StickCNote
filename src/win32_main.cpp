@@ -10,7 +10,7 @@
 
 #include "consts.hpp"
 
-#include "mem.cpp"
+//#include "mem.cpp"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
@@ -25,6 +25,7 @@
 #include <shellapi.h>
 #include <libloaderapi.h>
 
+#include "resources.hpp"
 
 internal struct app_data
 {
@@ -490,14 +491,22 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLineString, 
         int WindowShowMode)
 {
-    
+    Win32.AppIcon = LoadIcon(Instance, MAKEINTRESOURCE(IDI_APP_ICON));
+
+    if(!Win32.AppIcon)
+    {
+        PrintLastError(TEXT("LoadIcon"));
+        return FALSE;
+    }
+   
     WNDCLASSEX WindowClass = {};
     
     WindowClass.cbSize = sizeof(WNDCLASSEX);
     WindowClass.style  = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
-    //WindowClass.hIcon = ; // TODO(Ingar): We need to fill this in when we have an icon!
+    WindowClass.hIcon = Win32.AppIcon; 
+    WindowClass.hIconSm = Win32.AppIcon; 
     WindowClass.lpszClassName = TEXT("StickCNoteWindowClass");
     
     if(!RegisterClassEx(&WindowClass))
@@ -530,19 +539,6 @@ WinMain(HINSTANCE Instance,
         PrintLastError(TEXT("CreateWindowEx"));
         return FALSE; 
     }
-
-    Win32.AppIcon = (HICON)LoadImage(NULL,
-                      TEXT("W:/StickCNote/resources/icon_default.ico"),
-                      IMAGE_ICON,
-                      0, 0,
-                      LR_LOADFROMFILE | LR_DEFAULTSIZE);
-    if(!Win32.AppIcon)
-    {
-        PrintLastError(TEXT("LoadImage"));
-        return FALSE;
-    }
-
-    SendMessage(Window, WM_SETICON, ICON_BIG, (LPARAM)Win32.AppIcon);
 
     Win32AddTrayIcon(Window);
 
@@ -580,14 +576,14 @@ WinMain(HINSTANCE Instance,
     App.Mem.Initialized = true;
 
     
-    UINT_PTR AppDataTimerId = SetTimer(Window, 1, 50, &Win32UpdateAppCodeTimer);
-    if(!AppDataTimerId)
+    UINT_PTR AppCodeTimerId = SetTimer(Window, 1, 50, &Win32UpdateAppCodeTimer);
+    if(!AppCodeTimerId)
     {
         PrintLastError(TEXT("SetTimer"));
         return FALSE;
     }
     
-    UINT_PTR RedrawWindowTimer = SetTimer(Window, 2, 50, &Win32RedrawWindowTimer);
+    UINT_PTR RedrawWindowTimer = SetTimer(Window, 2, 16, &Win32RedrawWindowTimer);
     if(!RedrawWindowTimer)
     {
         PrintLastError(TEXT("SetTimer"));

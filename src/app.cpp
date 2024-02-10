@@ -30,8 +30,8 @@ extern "C" RESPOND_TO_MOUSE_CLICK(RespondToMouseClick)
 extern "C" RESPOND_TO_MOUSE_HOVER(RespondToMouseHover)
 {
     BgColor.R = (u8)y;
-    //BgColor.G = (u8)CursorPos.x + (u8)CursorPos.y;
-    //BgColor.B = (u8)CursorPos.x - (u8)CursorPos.y;
+    BgColor.G = (u8)x + (u8)y;
+    BgColor.B = (u8)x - (u8)y;
 }
 
 // void name(offscreen_buffer Buffer)

@@ -2,6 +2,8 @@
 #include "app.hpp"
 #include <cstddef>
 
+ // TODO(ingar): More error handling and null-pointer checks
+
 struct mem_arena
 {
     size_t Size;
@@ -17,6 +19,18 @@ CreateMemArena(mem_arena *Arena, void *Mem, size_t Size)
     Arena->Start = (uintptr_t)Mem;
     Arena->Offset = 0;
 }
+
+void
+DestroyMemArena(mem_arena **Arena)
+{
+    if(Arena == nullptr || *Arena == nullptr)
+    {
+        return;
+    }
+
+    *Arena = nullptr;
+}
+
 
 void *
 ArenaAlloc(mem_arena *Arena, size_t Size)
@@ -38,11 +52,13 @@ ArenaDealloc(mem_arena *Arena)
 
 struct mem_pool
 {
-    size_t Size;
+    size_t MemSize;
+    uintptr_t MemStart;
 
     u8 *AvailabilityOverview;
-
-    uintptr_t Start;
+    
+    size_t PoolSize;
+    uintptr_t PoolStart;
     size_t Offset;
 
     size_t ElemSize;
@@ -53,16 +69,27 @@ struct mem_pool
 
 struct pool_alloc
 {
+    size_t ElemSize;
+    u64 FirstElemIdx;
     u64 NElems;
-    uintptr_t Start;
+
     void *Mem;
 };
 
 // TODO(ingar): We need to make sure to add padding in order to meet alignment criteria 
 void
-CreateMemPool(mem_pool *Pool, void *Mem, size_t ElemSize, u64 ElemCap) 
+CreateMemPool(mem_pool *Pool, void *Mem, size_t Size,
+              size_t ElemSize, u64 ElemCap)
 {
     // TODO(ingar): We should probably check if the element size is a multiple of size instead
+    
+    size_t AvailabilityOverviewSize = ElemCap; // NOTE(ingar): Assert this is in bytes 
+    size_t PoolSize = ElemCap * ElemSize;
+
+    IsaAssert(AvailabilityOverviewSize + PoolSize == Size);
+    
+    Pool->MemSize = Size;
+    Pool->MemStart = (uintptr_t)Mem;
 
     Pool->AvailabilityOverview = (u8 *)Mem;
 
@@ -70,27 +97,68 @@ CreateMemPool(mem_pool *Pool, void *Mem, size_t ElemSize, u64 ElemCap)
     {
         ((u8 *)Mem)[i] = 1; // Set all as available
     }
-
-    Pool->Start = (uintptr_t)Mem + ElemCap;// TODO(ingar): Assure this comes out as a addition of bytes 
+    
+    Pool->PoolSize = Size - AvailabilityOverviewSize;
+    Pool->PoolStart = (uintptr_t)Mem + AvailabilityOverviewSize;// TODO(ingar): Assure this comes out as a addition of bytes 
     Pool->Offset = 0;
     
     Pool->ElemSize = ElemSize;
-    Pool->ElemCap = ElemCap;// TODO(ingar): Is this correct?
+    Pool->ElemCap = ElemCap;
     Pool->ElemCount = 0;
 }
 
 void
-PoolAlloc(mem_pool *Pool, pool_alloc *Alloc, u64 NElems)
+DestroyMemPool(mem_pool** Pool)
 {
-    IsaAssert(Pool->ElemCount + NElems <= Pool->ElemCap);
+    if(Pool == nullptr || *Pool == nullptr)
+    {
+        return;
+    }
+
+    *Pool = nullptr;
+}
+
+void
+PoolAlloc(mem_pool *Pool, pool_alloc *Alloc)
+{
+    u64 AvailableCount = 0;
+    bool FoundSpace = false;
+    u64 i = 0;
+
+    for(; i < Pool->ElemCap; ++i)
+    {
+        if(Pool->AvailabilityOverview[i])
+        {
+            ++AvailableCount;
+        }
+        else if(!Pool->AvailabilityOverview[i])
+        {
+            AvailableCount = 0;
+        }
+            
+        if(AvailableCount == Alloc->NElems)
+        {
+           FoundSpace = true;
+           break;
+        }
+    }
+
+    if(!FoundSpace)
+    {
+        Alloc->Mem = nullptr;
+        return;
+    }
     
-    uintptr_t AllocStart = Pool->Start + Pool->Offset;
-    void *MemStart = (void *)AllocStart;
+    size_t AllocStartOffset = (i - Alloc->NElems) * Pool->ElemSize;
+    Alloc->Mem = (void *)(Pool->PoolStart + AllocStartOffset);
+}
 
-    Pool->ElemCount += NElems;
-
-    Alloc->NElems = NElems;
-    Alloc->Start = AllocStart;
-    Alloc->Mem = MemStart;
+void
+PoolDealloc(mem_pool *Pool, pool_alloc *Alloc)
+{
+    for(u64 i = 0; i < Alloc->NElems; ++i)
+    {
+        u64 Idx = Alloc->FirstElemIdx;
+    }
 }
 
