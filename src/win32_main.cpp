@@ -6,14 +6,14 @@
 #include "isa.hpp"
 
 #include "utils.hpp"
-#include "app.hpp"
+#include "scn.hpp"
 
 #include "consts.hpp"
 
 //#include "mem.cpp"
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
+//#define STB_TRUETYPE_IMPLEMENTATION
+//#include "stb_truetype.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,10 +27,9 @@
 
 #include "resources.hpp"
 
-internal struct app_data
+internal struct scn
 {
-    app_mem Mem;
-    offscreen_buffer OffscreenBuffer;
+    scn_mem Mem;
 
     TCHAR DllName[MAX_PATH]; // TODO(ingar): MAX_PATH is deprecated 
     TCHAR TempDllName[MAX_PATH];
@@ -39,21 +38,22 @@ internal struct app_data
     FILETIME LastWriteTime;
 
     update_back_buffer *UpdateBackBuffer;
-    respond_to_mouse_click *RespondToMouseClick;
-    respond_to_mouse_hover *RespondToMouseHover;  
+    //respond_to_mouse_click *RespondToMouseClick;
+    //respond_to_mouse_hover *RespondToMouseHover;  
+    respond_to_mouse *RespondToMouse;  
 
     bool CodeLoaded;
 
-} App;
+} Scn;
 
-internal struct win32_data
+internal struct win32
 { 
     NOTIFYICONDATA NotifyIconData = {0};
     HICON AppIcon = {0};
 
 } Win32;
 
-enum :  UINT 
+enum : UINT 
 {
     WM_TRAY_ICON = (WM_USER + 1),
     ID_TRAY_EXIT,
@@ -65,6 +65,7 @@ enum :  UINT
 
 constexpr u64 NUM_COMMANDS = WIN32_COMMANDS_FINAL - WM_TRAY_ICON;
 
+ // NOTE(ingar): The window buffer's memory is at the start of Scn.Mem 
 internal struct window_buffer
 {
     BITMAPINFO DIBInfo;
@@ -163,35 +164,36 @@ Win32GetLastWriteTime(const TCHAR *Filename)
         LastWriteTime = Data.ftLastWriteTime;
     }
 
-    return(LastWriteTime);
+    return LastWriteTime;
 }
 
 internal void
-Win32UnloadAppCode(void)
+Win32UnloadScnCode(void)
 {
-    if(App.Dll)
+    if(Scn.Dll)
     {
-        FreeLibrary(App.Dll);
-        App.Dll= 0;
+        FreeLibrary(Scn.Dll);
+        Scn.Dll= 0;
     }
 
-    App.CodeLoaded = false;
-    App.UpdateBackBuffer = NULL;
+    Scn.CodeLoaded = false;
+    Scn.UpdateBackBuffer = NULL;
+ // TODO(ingar): Set the other functions to null as well!!! 
 }
 
 internal bool
-Win32LoadAppCode(void) // TODO(ingar): Pass file path as argument?
+Win32LoadScnCode(void) // TODO(ingar): Pass file path as argument?
 {
-    Win32UnloadAppCode();
+    Win32UnloadScnCode();
 
-    bool CopySucceeded = CopyFile(App.DllName, App.TempDllName, FALSE);
+    bool CopySucceeded = CopyFile(Scn.DllName, Scn.TempDllName, FALSE);
     if(!CopySucceeded)
     {
         PrintLastError(TEXT("CopyFile"));
         return false;
     }
 
-    HMODULE Dll = LoadLibraryExW(App.TempDllName, 0, 0);
+    HMODULE Dll = LoadLibraryExW(Scn.TempDllName, 0, 0);
     if(!Dll)
     {
         PrintLastError(TEXT("LoadLibraryExW)"));
@@ -199,37 +201,38 @@ Win32LoadAppCode(void) // TODO(ingar): Pass file path as argument?
     }
 
     update_back_buffer  *UpdateBackbuffer = (update_back_buffer *)GetProcAddress(Dll, "UpdateBackBuffer");
-    respond_to_mouse_click *RespondToMouseClick = (respond_to_mouse_click *)GetProcAddress(Dll, "RespondToMouseClick");
-    respond_to_mouse_hover *RespondToMouseHover = (respond_to_mouse_hover *)GetProcAddress(Dll, "RespondToMouseHover");
-    if(!UpdateBackbuffer)
+    respond_to_mouse *RespondToMouse = (respond_to_mouse *)GetProcAddress(Dll, "RespondToMouse");
+
+    if(!UpdateBackbuffer || !RespondToMouse)
     {
         PrintLastError(TEXT("GetProcAddress"));
         return false; //{0};
     }
 
-    App.Dll = Dll;
-    App.UpdateBackBuffer = UpdateBackbuffer;
-    App.RespondToMouseClick = RespondToMouseClick;
-    App.RespondToMouseHover = RespondToMouseHover;
-    App.CodeLoaded = true;
+    Scn.Dll = Dll;
+    Scn.UpdateBackBuffer = UpdateBackbuffer;
+ //   Scn.RespondToMouseClick = RespondToMouseClick;
+  //  Scn.RespondToMouseHover = RespondToMouseHover;
+    Scn.RespondToMouse = RespondToMouse;
+    Scn.CodeLoaded = true;
     
     return true;
 }
 
 VOID CALLBACK
-Win32UpdateAppCodeTimer(HWND Window, UINT Message, UINT_PTR TimerId, DWORD Time)
+Win32UpdateScnCodeTimer(HWND Window, UINT Message, UINT_PTR TimerId, DWORD Time)
 {
-    FILETIME LastFileTime = Win32GetLastWriteTime(App.DllName);
+    FILETIME LastFileTime = Win32GetLastWriteTime(Scn.DllName);
     
-    if(CompareFileTime(&LastFileTime, &App.LastWriteTime))
+    if(CompareFileTime(&LastFileTime, &Scn.LastWriteTime))
     {
         DebugPrint("Write time is newere!\n");
 
-        bool Success = Win32LoadAppCode(); 
+        bool Success = Win32LoadScnCode(); 
         if(Success)
         {
-            DebugPrint("Successfully updated Oms code in timer\n");    
-            App.LastWriteTime = LastFileTime;
+            DebugPrint("Successfully updated Scn code in timer\n");    
+            Scn.LastWriteTime = LastFileTime;
             
         }
     }
@@ -290,7 +293,7 @@ Win32ResizeDibSection(LONG Width, LONG Height)
     WindowBuffer.DIBInfo.bmiHeader.biBitCount = 32;
     WindowBuffer.DIBInfo.bmiHeader.biCompression = BI_RGB;
 
-    WindowBuffer.Mem = App.Mem.Work; 
+    WindowBuffer.Mem = Scn.Mem.Work; 
 }
 
 internal void
@@ -306,7 +309,7 @@ Win32UpdateWindow(HDC DeviceContext,  LONG Width, LONG Height)
     BackBuffer.Mem = WindowBuffer.Mem;
     BackBuffer.BytesPerPixel = WindowBuffer.BytesPerPixel;
 
-    App.UpdateBackBuffer(BackBuffer);
+    Scn.UpdateBackBuffer(BackBuffer);
 
     StretchDIBits(DeviceContext,
                   0, 0, Width, Height,
@@ -338,6 +341,8 @@ WmToMouseEvent(UINT Wm)
             return MOUSE_RDOWN;
         case WM_RBUTTONUP:
             return MOUSE_RUP;
+        case WM_MOUSEMOVE:
+            return MOUSE_MOVE;
         default:
             return MOUSE_INVALID;
     }
@@ -378,18 +383,12 @@ Win32MainWindowCallback(HWND Window,
         case WM_LBUTTONUP:
         case WM_RBUTTONDOWN:
         case WM_RBUTTONUP:
-        {
-            POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
-            enum mouse_event MouseEvent = WmToMouseEvent(SystemMessage);
-
-            App.RespondToMouseClick(MouseEvent, CursorPos.x, CursorPos.y);
-        }
-        break;
-
         case WM_MOUSEMOVE:
         {
             POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
-            App.RespondToMouseHover(CursorPos.x, CursorPos.y);
+            enum mouse_event Event = WmToMouseEvent(SystemMessage);
+
+            Scn.RespondToMouse(Event, CursorPos.x, CursorPos.y);
         }
         break;
         case WM_COMMAND:
@@ -542,10 +541,10 @@ WinMain(HINSTANCE Instance,
 
     Win32AddTrayIcon(Window);
 
-    AppendToEXEFilePathTchar(APP_DLL_NAME_TEXT, App.DllName, MAX_PATH);
-    AppendToEXEFilePathTchar(APP_DLL_TEMP_NAME_TEXT, App.TempDllName, MAX_PATH);
+    AppendToEXEFilePathTchar(APP_DLL_NAME_TEXT, Scn.DllName, MAX_PATH);
+    AppendToEXEFilePathTchar(APP_DLL_TEMP_NAME_TEXT, Scn.TempDllName, MAX_PATH);
 
-    bool Succeded = Win32LoadAppCode();
+    bool Succeded = Win32LoadScnCode();
     if(!Succeded)
     {
         return FALSE;
@@ -559,25 +558,25 @@ WinMain(HINSTANCE Instance,
     LPVOID BaseAddressWorkMem = 0;
 #endif
 
-    App.Mem.PermanentMemSize = MegaBytes(64);
-    App.Mem.Permanent = VirtualAlloc(BaseAddressPermanentMem, App.Mem.PermanentMemSize, 
+    Scn.Mem.PermanentMemSize = MegaBytes(64);
+    Scn.Mem.Permanent = VirtualAlloc(BaseAddressPermanentMem, Scn.Mem.PermanentMemSize, 
                                              MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    App.Mem.WorkMemSize = MegaBytes(128);
-    App.Mem.Work = VirtualAlloc(BaseAddressWorkMem, App.Mem.WorkMemSize, 
+    Scn.Mem.WorkMemSize = MegaBytes(128);
+    Scn.Mem.Work = VirtualAlloc(BaseAddressWorkMem, Scn.Mem.WorkMemSize, 
                                         MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    if(!(App.Mem.Permanent && App.Mem.Work))
+    if(!(Scn.Mem.Permanent && Scn.Mem.Work))
     {
         PrintLastError(TEXT("VirtualAlloc"));
         return FALSE;
     }
 
-    App.Mem.Initialized = true;
+    Scn.Mem.Initialized = true;
 
     
-    UINT_PTR AppCodeTimerId = SetTimer(Window, 1, 50, &Win32UpdateAppCodeTimer);
-    if(!AppCodeTimerId)
+    UINT_PTR ScnCodeTimerId = SetTimer(Window, 1, 50, &Win32UpdateScnCodeTimer);
+    if(!ScnCodeTimerId)
     {
         PrintLastError(TEXT("SetTimer"));
         return FALSE;

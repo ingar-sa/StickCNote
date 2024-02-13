@@ -8,7 +8,7 @@
 #include "isa.hpp"
 #include "utils.hpp"
 
-struct app_mem
+struct scn_mem
 {
     bool Initialized;
 
@@ -35,24 +35,22 @@ enum mouse_event
     MOUSE_RDOWN,
     MOUSE_RUP,
 
+    MOUSE_MOVE,
+
     MOUSE_INVALID,
 };
 
-#define RESPOND_TO_MOUSE_HOVER(name) void name(i64 x, i64 y)
-typedef RESPOND_TO_MOUSE_HOVER(respond_to_mouse_hover);
 
-extern "C" RESPOND_TO_MOUSE_HOVER(RespondToMouseHoverStub)
+union u32_argb
 {
-    DebugPrint("RespondToMouseHoverStub was called!\n");
-}
-
-#define RESPOND_TO_MOUSE_CLICK(name) void name(enum mouse_event Event, i64 x, i64 y)
-typedef RESPOND_TO_MOUSE_CLICK(respond_to_mouse_click);
-
-extern "C" RESPOND_TO_MOUSE_CLICK(RespondToMouseClickStub)
-{
-    DebugPrint("RespondToMouseClickStub was called!\n");
-}
+    struct
+    {
+        u8 B, G, R, A;
+    };
+     
+    u8 BGRA[4];
+    u32 U32;
+};
 
 
 #define UPDATE_BACK_BUFFER(name) void name(offscreen_buffer Buffer)
@@ -63,4 +61,9 @@ extern "C" UPDATE_BACK_BUFFER(UpdateBackBufferStub)
     DebugPrint("UpdateBackBufferStub was called!\n");
 }
 
-
+#define RESPOND_TO_MOUSE(name) void name(enum mouse_event Event, i64 x, i64 y)
+typedef RESPOND_TO_MOUSE(respond_to_mouse);
+extern "C" RESPOND_TO_MOUSE(RespondToMouseStub)
+{
+    DebugPrint("RespondToMouseStub was called!\n");
+}
