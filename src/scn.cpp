@@ -2,12 +2,11 @@
  * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
 */
 
-#include "isa.hpp"
-#include "consts.hpp"
-#include "scn.hpp"
-#include "mem.hpp"
-#include "scn_math.hpp"
-#include "scn_gui.hpp"
+#include "isa.h"
+#include "consts.h"
+#include "scn.h"
+#include "scn_math.h"
+#include "scn_gui.h"
 
 #include "scn_gui.cpp"
 
@@ -54,7 +53,7 @@ InitScnState(scn_mem *Mem)
     scn_state *State = (scn_state *)Mem->Permanent;
     if(!Mem->Initialized)
     {
-        InitMemArena(&State->Arena, (u8 *)Mem->Permanent + sizeof(scn_state), Mem->PermanentMemSize - sizeof(scn_state)); 
+        State->Arena = IsaArenaCreate((u8 *)Mem->Permanent + sizeof(scn_state), Mem->PermanentMemSize - sizeof(scn_state)); 
         Mem->Initialized = true; 
     }
 
@@ -122,8 +121,8 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
             u32_argb NewRectColor;
             NewRectColor.U32 = GetRandu32();
             
-            gui_rect NewRect;
-            NewRect.Dim = NewRectDim;
+            gui_rect *NewRect = IsaPushStructZero(&ScnState->Arena, gui_rect);
+            NewRect->Dim = NewRectDim;
             //PushStruct(ScnState->Arena, NewRect);
                           
         }
@@ -144,6 +143,11 @@ extern "C" SEED_RAND_PCG(SeedRandPcg)
 
 extern "C" UPDATE_BACK_BUFFER(UpdateBackBuffer)
 {
+    scn_state *ScnState = InitScnState(&Mem);
+
+    /* Draw background */
     DrawRect(Buffer, 0, 0, Buffer.w, Buffer.h, Bg.Color); 
+    
+     
 }
 

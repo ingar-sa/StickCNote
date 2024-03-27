@@ -1,7 +1,8 @@
 
-#include "isa.hpp"
-#include "scn.hpp"
-#include "consts.hpp"
+#include "isa.h"
+#include "scn.h"
+#include "scn_gui.h"
+#include "consts.h"
 
 isa_internal u32_argb
 ArgbFromu32(u32 Color)

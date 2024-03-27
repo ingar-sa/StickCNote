@@ -10,10 +10,10 @@
  */
 
 
-#include "isa.hpp"
-#include "consts.hpp"
-#include "win32_utils.hpp"
-#include "scn.hpp" // TODO(ingar): Split into scn and scn_platform?
+#include "isa.h"
+#include "consts.h"
+#include "win32_utils.h"
+#include "scn.h" // TODO(ingar): Split into scn and scn_platform?
 
 //#define STB_TRUETYPE_IMPLEMENTATION
 //#include "stb_truetype.h"
@@ -28,7 +28,7 @@
 #include <shellapi.h>
 #include <libloaderapi.h>
 
-#include "resources.hpp"
+#include "resources.h"
 
 isa_global struct scn
 {
@@ -40,11 +40,11 @@ isa_global struct scn
     HMODULE Dll;
     FILETIME LastWriteTime;
 
+    bool CodeLoaded;
     update_back_buffer *UpdateBackBuffer;
     respond_to_mouse *RespondToMouse;  
     seed_rand_pcg *SeedRandPcg; // TODO(ingar): This is overkill
 
-    bool CodeLoaded;
 
 } Scn;
 
@@ -296,7 +296,7 @@ Win32ResizeDibSection(LONG Width, LONG Height)
     WindowBuffer.DIBInfo.bmiHeader.biCompression = BI_RGB;
     
     // TODO(ingar): Should this memory be used for this?
-    WindowBuffer.Mem = Scn.Mem.Work; 
+    WindowBuffer.Mem = Scn.Mem.Session; 
 }
 
 isa_internal void
@@ -562,11 +562,11 @@ WinMain(HINSTANCE Instance,
     Scn.Mem.Permanent = VirtualAlloc(BaseAddressPermanentMem, Scn.Mem.PermanentMemSize, 
                                              MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    Scn.Mem.WorkMemSize = MegaByte(128);
-    Scn.Mem.Work = VirtualAlloc(BaseAddressWorkMem, Scn.Mem.WorkMemSize, 
+    Scn.Mem.SessionMemSize = MegaByte(128);
+    Scn.Mem.Session = VirtualAlloc(BaseAddressWorkMem, Scn.Mem.SessionMemSize, 
                                         MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    if(!(Scn.Mem.Permanent && Scn.Mem.Work))
+    if(!(Scn.Mem.Permanent && Scn.Mem.Session))
     {
         PrintLastError(TEXT("VirtualAlloc"));
         return FALSE;

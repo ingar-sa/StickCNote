@@ -1,7 +1,7 @@
 #pragma once
 
-#include "isa.hpp"
-#include "scn_intrinsics.hpp"
+#include "isa.h"
+#include "scn_intrinsics.h"
 
 union v2
 {

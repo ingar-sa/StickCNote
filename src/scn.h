@@ -5,10 +5,7 @@
 
 #pragma once
 
-#include "isa.hpp"
-#include "mem.hpp"
-
-#include "mem.cpp" 
+#include "isa.h"
 
 struct scn_mem
 {
@@ -17,8 +14,8 @@ struct scn_mem
     size_t PermanentMemSize;
     void *Permanent;
 
-    size_t WorkMemSize;
-    void *Work;
+    size_t SessionMemSize;
+    void *Session;
 };
 
 // TODO(ingar): Make the storage of this internal to scn instead of the
@@ -59,8 +56,7 @@ struct scn_mouse_event
 // an "infinite" amount of entities, we have to find a way to support this.
 struct scn_state
 {
-    mem_arena Arena;
-    uintptr_t StackPtr;
+    isa_mem_arena Arena;
 };
 
 // TODO(ingar): Add (and figure out what it is) thread context
