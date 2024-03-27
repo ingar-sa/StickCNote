@@ -2,15 +2,18 @@
  * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
 */
 
+/* TODO
+ * 
+ * - Make the platform layer tighter by watching how it's done in HH
+ * - Support multiple windows
+ *
+ */
+
 
 #include "isa.hpp"
-
-#include "utils.hpp"
-#include "scn.hpp"
-
 #include "consts.hpp"
-
-//#include "mem.cpp"
+#include "win32_utils.hpp"
+#include "scn.hpp" // TODO(ingar): Split into scn and scn_platform?
 
 //#define STB_TRUETYPE_IMPLEMENTATION
 //#include "stb_truetype.h"
@@ -27,7 +30,7 @@
 
 #include "resources.hpp"
 
-internal struct scn
+isa_global struct scn
 {
     scn_mem Mem;
 
@@ -38,18 +41,17 @@ internal struct scn
     FILETIME LastWriteTime;
 
     update_back_buffer *UpdateBackBuffer;
-    //respond_to_mouse_click *RespondToMouseClick;
-    //respond_to_mouse_hover *RespondToMouseHover;  
     respond_to_mouse *RespondToMouse;  
+    seed_rand_pcg *SeedRandPcg; // TODO(ingar): This is overkill
 
     bool CodeLoaded;
 
 } Scn;
 
-internal struct win32
+isa_global struct win32
 { 
-    NOTIFYICONDATA NotifyIconData = {0};
-    HICON AppIcon = {0};
+    NOTIFYICONDATA NotifyIconData;
+    HICON AppIcon;
 
 } Win32;
 
@@ -63,10 +65,8 @@ enum : UINT
     WIN32_COMMANDS_FINAL,
 };
 
-constexpr u64 NUM_COMMANDS = WIN32_COMMANDS_FINAL - WM_TRAY_ICON;
-
  // NOTE(ingar): The window buffer's memory is at the start of Scn.Mem 
-internal struct window_buffer
+isa_global struct window_buffer
 {
     BITMAPINFO DIBInfo;
 
@@ -85,7 +85,7 @@ struct win32_window_dims
 };
 
 
-internal u64 
+isa_internal u64 
 StringLengthTchar(const TCHAR *String)
 {
     u64 Count = 0;
@@ -96,10 +96,10 @@ StringLengthTchar(const TCHAR *String)
     return Count;
 }
 
-internal i64
+isa_internal i64
 FindLastOfTChar(const TCHAR *StringToSearch, TCHAR Char)
 {
-    i64 LastIndex = -1;  // Use an invalid index to indicate not found.
+    i64 LastIndex = -1;
     for(u64 Index = 0; StringToSearch[Index]; ++Index)
     {
         if(StringToSearch[Index] == Char) LastIndex = Index;
@@ -108,7 +108,7 @@ FindLastOfTChar(const TCHAR *StringToSearch, TCHAR Char)
     return LastIndex;
 }
 
-internal void
+isa_internal void
 CatStringsTchar(u64 SourceACount, const TCHAR *SourceA,
                 u64 SourceBCount, const TCHAR *SourceB,
                 u64 DestCount,          TCHAR *Dest)
@@ -128,7 +128,7 @@ CatStringsTchar(u64 SourceACount, const TCHAR *SourceA,
     *Dest++ = 0;
 }
 
-internal bool
+isa_internal bool
 AppendToEXEFilePathTchar(const TCHAR *Filename, TCHAR *Out, size_t OutLen)
 {
     HMODULE hModule = GetModuleHandle(NULL);
@@ -167,7 +167,7 @@ Win32GetLastWriteTime(const TCHAR *Filename)
     return LastWriteTime;
 }
 
-internal void
+isa_internal void
 Win32UnloadScnCode(void)
 {
     if(Scn.Dll)
@@ -178,10 +178,12 @@ Win32UnloadScnCode(void)
 
     Scn.CodeLoaded = false;
     Scn.UpdateBackBuffer = NULL;
+    Scn.RespondToMouse = NULL;
+    Scn.SeedRandPcg = NULL;
  // TODO(ingar): Set the other functions to null as well!!! 
 }
 
-internal bool
+isa_internal bool
 Win32LoadScnCode(void) // TODO(ingar): Pass file path as argument?
 {
     Win32UnloadScnCode();
@@ -202,8 +204,9 @@ Win32LoadScnCode(void) // TODO(ingar): Pass file path as argument?
 
     update_back_buffer  *UpdateBackbuffer = (update_back_buffer *)GetProcAddress(Dll, "UpdateBackBuffer");
     respond_to_mouse *RespondToMouse = (respond_to_mouse *)GetProcAddress(Dll, "RespondToMouse");
+    seed_rand_pcg *SeedRandPcg = (seed_rand_pcg *)GetProcAddress(Dll, "SeedRandPcg");
 
-    if(!UpdateBackbuffer || !RespondToMouse)
+    if(!UpdateBackbuffer || !RespondToMouse || !SeedRandPcg)
     {
         PrintLastError(TEXT("GetProcAddress"));
         return false; //{0};
@@ -211,9 +214,8 @@ Win32LoadScnCode(void) // TODO(ingar): Pass file path as argument?
 
     Scn.Dll = Dll;
     Scn.UpdateBackBuffer = UpdateBackbuffer;
- //   Scn.RespondToMouseClick = RespondToMouseClick;
-  //  Scn.RespondToMouseHover = RespondToMouseHover;
     Scn.RespondToMouse = RespondToMouse;
+    Scn.SeedRandPcg = SeedRandPcg;
     Scn.CodeLoaded = true;
     
     return true;
@@ -242,7 +244,7 @@ Win32UpdateScnCodeTimer(HWND Window, UINT Message, UINT_PTR TimerId, DWORD Time)
     }
 }
 
-internal win32_window_dims 
+isa_internal win32_window_dims 
 Win32GetWindowDimensions(HWND Window)
 {
     RECT ClientRect;
@@ -255,7 +257,7 @@ Win32GetWindowDimensions(HWND Window)
 }
 
 
-internal void
+isa_internal void
 Win32AddTrayIcon(HWND Window)
 { 
     NOTIFYICONDATA IconData = Win32.NotifyIconData;
@@ -273,13 +275,13 @@ Win32AddTrayIcon(HWND Window)
     Shell_NotifyIcon(NIM_ADD, &IconData); 
 }
 
-internal void
+isa_internal void
 Win32RemoveTrayIcon()
 {
     Shell_NotifyIcon(NIM_DELETE, &Win32.NotifyIconData); // Remove the icon from the system tray
 }
 
-internal void
+isa_internal void
 Win32ResizeDibSection(LONG Width, LONG Height)
 {
     WindowBuffer.Width = Width;
@@ -292,16 +294,17 @@ Win32ResizeDibSection(LONG Width, LONG Height)
     WindowBuffer.DIBInfo.bmiHeader.biPlanes = 1;
     WindowBuffer.DIBInfo.bmiHeader.biBitCount = 32;
     WindowBuffer.DIBInfo.bmiHeader.biCompression = BI_RGB;
-
+    
+    // TODO(ingar): Should this memory be used for this?
     WindowBuffer.Mem = Scn.Mem.Work; 
 }
 
-internal void
+isa_internal void
 Win32UpdateWindow(HDC DeviceContext,  LONG Width, LONG Height)
 {
     // NOTE(ingar): A back buffer is a subset of offscreen buffers that is specifically
     // meant to hold the next frame to be displayed, which is appropriate in this circumstance
-    offscreen_buffer BackBuffer = {};
+    scn_offscreen_buffer BackBuffer = {};
 
     BackBuffer.w = WindowBuffer.Width;
     BackBuffer.h = WindowBuffer.Height;
@@ -309,7 +312,7 @@ Win32UpdateWindow(HDC DeviceContext,  LONG Width, LONG Height)
     BackBuffer.Mem = WindowBuffer.Mem;
     BackBuffer.BytesPerPixel = WindowBuffer.BytesPerPixel;
 
-    Scn.UpdateBackBuffer(BackBuffer);
+    Scn.UpdateBackBuffer(Scn.Mem, BackBuffer);
 
     StretchDIBits(DeviceContext,
                   0, 0, Width, Height,
@@ -328,23 +331,23 @@ Win32RedrawWindowTimer(HWND Window, UINT Message, UINT_PTR TimerId, DWORD Time)
     ReleaseDC(Window, DeviceContext);
 }
 
-internal enum mouse_event
-WmToMouseEvent(UINT Wm)
+isa_internal enum scn_mouse_event_type
+WmToMouseEventType(UINT Wm)
 {
     switch(Wm)
     {
         case WM_LBUTTONDOWN:
-            return MOUSE_LDOWN;
+            return ScnMouseEvent_LDown;
         case WM_LBUTTONUP:
-            return MOUSE_LUP;
+            return ScnMouseEvent_LUp;
         case WM_RBUTTONDOWN:
-            return MOUSE_RDOWN;
+            return ScnMouseEvent_RDown;
         case WM_RBUTTONUP:
-            return MOUSE_RUP;
+            return ScnMouseEvent_RUp;
         case WM_MOUSEMOVE:
-            return MOUSE_MOVE;
+            return ScnMouseEvent_Move;
         default:
-            return MOUSE_INVALID;
+            return ScnMouseEvent_Invalid;
     }
 }
 
@@ -385,10 +388,11 @@ Win32MainWindowCallback(HWND Window,
         case WM_RBUTTONUP:
         case WM_MOUSEMOVE:
         {
-            POINT CursorPos = { LOWORD(LParams), HIWORD(LParams) };
-            enum mouse_event Event = WmToMouseEvent(SystemMessage);
-
-            Scn.RespondToMouse(Event, CursorPos.x, CursorPos.y);
+            scn_mouse_event Event;
+            Event.Type= WmToMouseEventType(SystemMessage);
+            Event.x = LOWORD(LParams);
+            Event.y = HIWORD(LParams); 
+            Scn.RespondToMouse(Scn.Mem, Event);
         }
         break;
         case WM_COMMAND:
@@ -513,7 +517,8 @@ WinMain(HINSTANCE Instance,
         PrintLastError(TEXT("RegisterClassEx"));
         return FALSE;
     }
-
+    
+    // TODO(ingar): Is this necessary for this application?
     HANDLE ProgramInstanceMutex = CreateMutex(NULL, FALSE, TEXT("StickCNoteProgramMutex"));
     if(GetLastError() == ERROR_ALREADY_EXISTS)
     {
@@ -544,25 +549,20 @@ WinMain(HINSTANCE Instance,
     AppendToEXEFilePathTchar(APP_DLL_NAME_TEXT, Scn.DllName, MAX_PATH);
     AppendToEXEFilePathTchar(APP_DLL_TEMP_NAME_TEXT, Scn.TempDllName, MAX_PATH);
 
-    bool Succeded = Win32LoadScnCode();
-    if(!Succeded)
-    {
-        return FALSE;
-    }
- 
+
 #ifndef NAPP_DEBUG 
-    LPVOID BaseAddressPermanentMem = (LPVOID)TeraBytes(1);
-    LPVOID BaseAddressWorkMem = (LPVOID)TeraBytes(2);
+    LPVOID BaseAddressPermanentMem = (LPVOID)TeraByte(1);
+    LPVOID BaseAddressWorkMem = (LPVOID)TeraByte(2);
 #else
     LPVOID BaseAddressPermanentMem = 0;
     LPVOID BaseAddressWorkMem = 0;
 #endif
 
-    Scn.Mem.PermanentMemSize = MegaBytes(64);
+    Scn.Mem.PermanentMemSize = MegaByte(64);
     Scn.Mem.Permanent = VirtualAlloc(BaseAddressPermanentMem, Scn.Mem.PermanentMemSize, 
                                              MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    Scn.Mem.WorkMemSize = MegaBytes(128);
+    Scn.Mem.WorkMemSize = MegaByte(128);
     Scn.Mem.Work = VirtualAlloc(BaseAddressWorkMem, Scn.Mem.WorkMemSize, 
                                         MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
@@ -572,9 +572,12 @@ WinMain(HINSTANCE Instance,
         return FALSE;
     }
 
-    Scn.Mem.Initialized = true;
-
-    
+    bool Succeded = Win32LoadScnCode();
+    if(!Succeded)
+    {
+        return FALSE;
+    }
+ 
     UINT_PTR ScnCodeTimerId = SetTimer(Window, 1, 50, &Win32UpdateScnCodeTimer);
     if(!ScnCodeTimerId)
     {
@@ -590,11 +593,15 @@ WinMain(HINSTANCE Instance,
     }
 
 
-    //NOTE(Ingar): We need to call this here because the WM_SIZE message is posted before the above memory allocation
-    //             which meaans GlobalBackbuffer's memory's address is 0
+    // NOTE(Ingar): We need to call this here because the WM_SIZE message is posted before the above memory allocation
+    // which meaans GlobalBackbuffer's memory's address is 0
     win32_window_dims WindowDimensions = Win32GetWindowDimensions(Window);
     Win32ResizeDibSection(WindowDimensions.Width, WindowDimensions.Height);
-   
+
+    LARGE_INTEGER PerformanceCounter;
+    QueryPerformanceCounter(&PerformanceCounter);
+    Scn.SeedRandPcg(PerformanceCounter.LowPart);
+
     MSG Message = {};
     BOOL MessageRet = 1;
     

@@ -2,78 +2,148 @@
  * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
 */
 
-
 #include "isa.hpp"
+#include "consts.hpp"
 #include "scn.hpp"
+#include "mem.hpp"
+#include "scn_math.hpp"
+#include "scn_gui.hpp"
 
+#include "scn_gui.cpp"
 
-struct bg_landscape
+isa_global struct bg_landscape
 {
-    u32_argb Color;
+    u32_argb Color = { .U32 = (u32)PRUSSIAN_BLUE };
     i64 x, y;
-};
 
-static bg_landscape Bg = {};
+} Bg;
 
-internal void 
+// TODO(ingar): All of the static structs should proabably be part of
+// the permanent memory so that they can be stored on disk
+isa_global struct mouse_history
+{
+    bool LClicked = false;
+    bool RClicked = false;
+
+    scn_mouse_event Prev;
+    scn_mouse_event PrevLClick;
+    scn_mouse_event PrevRClick;
+
+} MouseHistory;
+
+isa_internal void
+UpdateBg(u32_argb NewColor)
+{
+    Bg.Color = NewColor;    
+}
+
+isa_internal void 
 UpdateBgColorWhenDragging(bg_landscape *Landscape, i64 x, i64 y)
 {
    Landscape->x += x; 
    Landscape->y += y; 
 
-   Landscape->Color.R += (u8)(x / 128);
-   Landscape->Color.G += (u8)((x + y) / 128);
-   Landscape->Color.B += (u8)(y / 128);
+   Landscape->Color.r += (u8)(x / 128);
+   Landscape->Color.g += (u8)((x + y) / 128);
+   Landscape->Color.b += (u8)(y / 128);
+}
+
+isa_internal scn_state *
+InitScnState(scn_mem *Mem)
+{
+    scn_state *State = (scn_state *)Mem->Permanent;
+    if(!Mem->Initialized)
+    {
+        InitMemArena(&State->Arena, (u8 *)Mem->Permanent + sizeof(scn_state), Mem->PermanentMemSize - sizeof(scn_state)); 
+        Mem->Initialized = true; 
+    }
+
+    return State;
 }
 
 
 
- // NOTE(ingar): Is it better to have everything in one function, or is there
- // merit to splitting it up in order to have a shorter code path (maybe) for
- // each action?
+// NOTE(ingar): Casey says that your code should not be split up in this way
+// the code that updates state and then renders should be executed simultaneously
+// so we might want to do that
+// NOTE(ingar): This was also in the context of games. Sinuce we're a traditional app
+// we might have different needs to handle events asynchronously
+
 extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 {
-    static bool LeftClicked = false;
-    static bool RightClicked = false;
+    scn_state *ScnState = InitScnState(&Mem);
 
-    if(Event == MOUSE_LDOWN) LeftClicked = true; 
-    if(Event == MOUSE_RDOWN) RightClicked = true; 
-    if(Event == MOUSE_LUP) LeftClicked = false; 
-    if(Event == MOUSE_RUP) RightClicked = false; 
-
-    if(Event == MOUSE_MOVE && LeftClicked)
+    // TODO(ingar): Convert to switch
+    if(Event.Type == ScnMouseEvent_LDown)
     {
-        UpdateBgColorWhenDragging(&Bg, x, y);
+        MouseHistory.LClicked = true; 
     }
-}
-/*
-extern "C" RESPOND_TO_MOUSE_CLICK(RespondToMouseClick)
-{
-    BgColor.R = (u8)y;
-    BgColor.G = (u8)x;
-    BgColor.B = (u8)x - (u8)y;
+    else if(Event.Type == ScnMouseEvent_RDown)
+    {
+        MouseHistory.RClicked = true; 
+    }
+
+    if(Event.Type == ScnMouseEvent_LUp)
+    {
+        if(MouseHistory.Prev.Type == ScnMouseEvent_Move)
+        {
+            i64 PrevX = MouseHistory.PrevLClick.x;
+            i64 PrevY = MouseHistory.PrevLClick.y;
+
+            rect NewRectDim = { V2(0, 0), V2(0, 0) };
+
+            if(PrevX < Event.x)
+            {
+                NewRectDim.min.x = (float)PrevX;
+                NewRectDim.max.x = (float)Event.x;
+            }
+            else
+            {
+                NewRectDim.min.x = (float)Event.x;
+                NewRectDim.max.x = (float)PrevX;
+            }
+
+            if(PrevY < Event.x)
+            {
+                NewRectDim.min.y = (float)PrevY;
+                NewRectDim.max.y = (float)Event.y;
+            }
+            else
+            {
+                NewRectDim.min.y = (float)Event.y;
+                NewRectDim.max.y = (float)PrevY;
+            }
+            
+            // TODO(ingar): We need to push ui elements into memory which
+            // UpdateBackBuffer then iterates over and draws
+            // TODO(ingar): Since the functions are ran on timers, this
+            // probably means that we need synchronization mechanisms so that
+            // new elements are not pushed simultaneously with the drawing
+            u32_argb NewRectColor;
+            NewRectColor.U32 = GetRandu32();
+            
+            gui_rect NewRect;
+            NewRect.Dim = NewRectDim;
+            //PushStruct(ScnState->Arena, NewRect);
+                          
+        }
+
+        MouseHistory.LClicked = false; 
+    }
+
+    if(Event.Type == ScnMouseEvent_RUp) MouseHistory.RClicked = false; 
+
+    MouseHistory.Prev = Event;
 }
 
-extern "C" RESPOND_TO_MOUSE_HOVER(RespondToMouseHover)
+// NOTE(ingar): Man, this is overkill for this. Hoowee
+extern "C" SEED_RAND_PCG(SeedRandPcg)
 {
-    BgColor.R = (u8)y;
-    BgColor.G = (u8)x + (u8)y;
-    BgColor.B = (u8)x - (u8)y;
+    SeedRandPcg_(Seed);
 }
-*/
 
 extern "C" UPDATE_BACK_BUFFER(UpdateBackBuffer)
 {
-    i64 Pitch = Buffer.w * Buffer.BytesPerPixel;
-    u8 *Row = (u8 *)Buffer.Mem;
-
-    for(i64 y = 0; y < Buffer.h; ++y)
-    {
-        u32 *Pixel = (u32 *)Row;
-        for(i32 x = 0; x < Buffer.w; ++x) {
-            *Pixel++ = Bg.Color.U32;
-        }
-
-        Row += Pitch;
-    }
+    DrawRect(Buffer, 0, 0, Buffer.w, Buffer.h, Bg.Color); 
 }
+

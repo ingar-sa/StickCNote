@@ -26,7 +26,7 @@ set CommonCompilerFlags=/MTd /nologo /GL /GR- /EHsc /Od /Oi /W4 /wd4200 /wd4201 
 
 set CommonLinkerFlags=/Fm%BuildFolder%\ /link %Libs%
 
-cl %CommonCompilerFlags% %AppFileOutputs% src/scn.cpp /LD %CommonLinkerFlags% /PDB:%BuildFolder%\app_%random%.pdb /EXPORT:UpdateBackBuffer /EXPORT:RespondToMouse 
+cl %CommonCompilerFlags% %AppFileOutputs% src/scn.cpp /LD %CommonLinkerFlags% /PDB:%BuildFolder%\app_%random%.pdb /EXPORT:UpdateBackBuffer /EXPORT:RespondToMouse /EXPORT:SeedRandPcg
 
 cl %CommonCompilerFlags% %Win32FileOutputs% src/win32_main.cpp %Resources% %CommonLinkerFlags%
 

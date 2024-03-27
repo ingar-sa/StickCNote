@@ -36,6 +36,9 @@ typedef int64_t i64;
 #include <stdbool.h>
 #endif
 
+#define isa_internal static
+#define isa_persist static
+#define isa_global static
 ////////////////////////////////////////
 //                MISC                //                
 ////////////////////////////////////////
@@ -46,14 +49,14 @@ typedef int64_t i64;
 #define TeraByte(Number) (GigaByte(Number) * 1024ULL)
 
 bool
-isaDoubleEpsilonCompare(const double A, const double B)
+IsaDoubleEpsilonCompare(const double A, const double B)
 {
     double GreatestValue = (fabs(A) < fabs(B)) ? fabs(B) : fabs(A);
     return fabs(A - B) <= (GreatestValue * DBL_EPSILON);
 }
 
 uint64_t
-isaDoubleSignBit(double F)
+IsaDoubleSignBit(double F)
 {
     uint64_t Mask  = 1ULL << 63;
     uint64_t *Comp = (uint64_t *)&F;
@@ -62,7 +65,7 @@ isaDoubleSignBit(double F)
 }
 
 double
-isaRadiansFromDegrees(double Degrees)
+IsaRadiansFromDegrees(double Degrees)
 {
     double Radians = 0.01745329251994329577f * Degrees;
     return Radians;
@@ -70,14 +73,14 @@ isaRadiansFromDegrees(double Degrees)
 
 template <typename T>
 int
-isaCompare(const T A, const T B)
+IsaCompare(const T A, const T B)
 {
     return (A > B) - (A < B);
 }
 
 template <typename T>
 void
-isaSwap(T &a, T &b) {
+IsaSwap(T &a, T &b) {
     T temp = a;
     a = b;
     b = temp;
@@ -348,7 +351,7 @@ ISA__FreeTrace(void *Pointer, const char *Function, int Line, const char *File)
 }
 
 bool
-isaInitAllocationCollection(uint64_t Capacity)
+IsaInitAllocationCollection(uint64_t Capacity)
 {
     isa__global_allocation_collection *Collection = ISA__GetGlobalAllocationCollection();
 
@@ -378,7 +381,7 @@ isaInitAllocationCollection(uint64_t Capacity)
 }
 
 void
-isaPrintAllAllocations(void)
+IsaPrintAllAllocations(void)
 {
     isa__global_allocation_collection *Collection = ISA__GetGlobalAllocationCollection();
     if(Collection->AllocationCount > 0)
@@ -411,7 +414,7 @@ ISA__GetPCGState(void)
 // Implementation of the PCG algorithm (https://www.pcg-random.org)
 // It's the caller's responsibilites to have called SeedRandPCG before use
 uint32_t
-isaRandPCG(void)
+IsaRandPCG(void)
 {
     uint32_t State = *ISA__GetPCGState();
     *ISA__GetPCGState() = State * 747796405u + 2891336453u;
@@ -420,28 +423,28 @@ isaRandPCG(void)
 }
 
 void
-isaSeedRandPCG(uint32_t Seed)
+IsaSeedRandPCG(uint32_t Seed)
 {
     *ISA__GetPCGState() = Seed;
 }
 
 template <typename T>
 T
-isaRandomInRangePCG(T Min, T Max)
+IsaRandomInRangePCG(T Min, T Max)
 {
-    double Scalar = (double)isaRandPCG() / (double)(UINT32_MAX);
-    return Min + (Scalar * (Max - Min));
+    double Scalar = (double)IsaRandPCG() / (double)(UINT32_MAX);
+    return T(Min + (Scalar * (Max - Min)));
 }
 
 ////////////////////////////////////////
 //               ARRAY                //                
 ////////////////////////////////////////
 
-#define isaArraySize(Array) (sizeof(Array) / sizeof(Array[0]))
+#define IsaArraySize(Array) (sizeof(Array) / sizeof(Array[0]))
 
 template <typename T>
 void
-isaPrintArray(const T *Arr, uint64_t Len, uint64_t NewLinePos,
+IsaPrintArray(const T *Arr, uint64_t Len, uint64_t NewLinePos,
               const char *FormatString)
 {
     for(uint64_t i = 0; i < Len; ++i)
@@ -454,7 +457,7 @@ isaPrintArray(const T *Arr, uint64_t Len, uint64_t NewLinePos,
 
 template <typename T>
 bool
-isaArraysEqual(const T *A, const T *B, uint64_t Len)
+IsaArraysEqual(const T *A, const T *B, uint64_t Len)
 {
     for(uint64_t i = 0; i < Len; ++i)
     {
@@ -466,14 +469,14 @@ isaArraysEqual(const T *A, const T *B, uint64_t Len)
 
 template <typename T>
 T *
-isaRandomArrayPCG(uint64_t Len, T MinVal, T MaxVal)
+IsaRandomArrayPCG(uint64_t Len, T MinVal, T MaxVal)
 {
     T *Arr = (T *)malloc(Len * sizeof(int32_t));
     if(!Arr) return 0;
 
     for(uint64_t i = 0; i < Len; ++i)
     {
-        Arr[i] = isaRandomInRangePCG<T>(MinVal, MaxVal);
+        Arr[i] = IsaRandomInRangePCG<T>(MinVal, MaxVal);
     }
 
     return Arr;
@@ -481,11 +484,11 @@ isaRandomArrayPCG(uint64_t Len, T MinVal, T MaxVal)
 
 template <typename T>
 void
-isaFisherYatesShuffle(T *Arr, uint64_t Len)
+IsaFisherYatesShuffle(T *Arr, uint64_t Len)
 {
     for(uint64_t i = Len - 1; i > 0; --i)
     {
-        uint64_t j = isaRandomInRangePCG<uint64_t>(0, i);
+        uint64_t j = IsaRandomInRangePCG<uint64_t>(0, i);
         Swap(Arr[i], Arr[j]);
     }
 }
@@ -507,7 +510,7 @@ isa_file_data;
  *       The null-terminator is always added since we use calloc.
 */
 isa_file_data *
-isaLoadFileIntoMemory(const char *Filename)
+IsaLoadFileIntoMemory(const char *Filename)
 {
     FILE *fd = fopen(Filename, "rb");
     if(!fd)
@@ -550,7 +553,7 @@ isaLoadFileIntoMemory(const char *Filename)
 }
 
 bool
-isaWriteBufferToFile(void *Buffer, size_t ElementSize,
+IsaWriteBufferToFile(void *Buffer, size_t ElementSize,
                      uint64_t ElementCount, const char *Filename)
 {
     FILE *fd = fopen(Filename, "wb");
@@ -566,7 +569,7 @@ isaWriteBufferToFile(void *Buffer, size_t ElementSize,
 }
 
 bool
-isaWrite_file_data_ToFile(isa_file_data *FileData, const char *Filename)
+IsaWrite_file_data_ToFile(isa_file_data *FileData, const char *Filename)
 {
     FILE *fd = fopen(Filename, "wb");
     if(!fd)
@@ -595,7 +598,7 @@ struct isa_queue
 
 template <typename T>
 isa_queue<T> *
-isaQConstruct(uint64_t Capacity)
+IsaQConstruct(uint64_t Capacity)
 {
     size_t QueueTotalSize = sizeof(isa_queue<T>) + (Capacity * sizeof(T));
     
@@ -611,30 +614,30 @@ isaQConstruct(uint64_t Capacity)
 
 template <typename T>
 void
-isaQDestruct(isa_queue<T> *Queue)
+IsaQDestruct(isa_queue<T> *Queue)
 {
     if(Queue) free(Queue);
 }
 
 template <typename T>
 bool
-isaQIsEmpty(isa_queue<T> *Queue)
+IsaQIsEmpty(isa_queue<T> *Queue)
 {
     return Queue->Front == -1;
 }
 
 template <typename T>
 bool
-isaQIsFull(isa_queue<T> *Queue)
+IsaQIsFull(isa_queue<T> *Queue)
 {
     return ((Queue->End + 1) % Queue->Capacity) == Queue->Front;
 }
 
 template <typename T>
 bool
-isaQEnqueue(isa_queue<T> *Queue, uint32_t Val)
+IsaQEnqueue(isa_queue<T> *Queue, uint32_t Val)
 {
-    if(isaQIsFull(Queue)) return false;
+    if(IsaQIsFull(Queue)) return false;
 
     if(Queue->Front == -1) Queue->Front = 0;
 
@@ -646,9 +649,9 @@ isaQEnqueue(isa_queue<T> *Queue, uint32_t Val)
 
 template <typename T>
 T
-isaQDequeue(isa_queue<T> *Queue)
+IsaQDequeue(isa_queue<T> *Queue)
 {
-    if(isaQIsEmpty(Queue)) return 0;
+    if(IsaQIsEmpty(Queue)) return 0;
 
     T Item = Queue->Q[Queue->Front];
     if(Queue->Front == Queue->End) Queue->Front = Queue->End = -1;
@@ -666,14 +669,14 @@ using isa_binary_heap_comparator = bool(*)(const T&, const T&);
 
 template <typename T>
 bool
-isaMinHeapCompare(const T& Current, const T& Parent)
+IsaMinHeapCompare(const T& Current, const T& Parent)
 {
     return Current < Parent;
 }
 
 template <typename T>
 bool
-isaMaxHeapCompare(const T& Current, const T& Parent)
+IsaMaxHeapCompare(const T& Current, const T& Parent)
 {
     return Current > Parent;
 }
@@ -689,7 +692,7 @@ struct isa_binary_heap
 
 template <typename T>
 isa_binary_heap<T> *
-isaBinaryHeapConstruct(uint64_t Capacity, isa_binary_heap_comparator<T> Comparator)
+IsaBinaryHeapConstruct(uint64_t Capacity, isa_binary_heap_comparator<T> Comparator)
 {
     size_t HeapTotalSize = sizeof(isa_binary_heap<T>) + (sizeof(T) * Capacity);
     isa_binary_heap<T> *Heap = (isa_binary_heap<T> *)calloc(1, HeapTotalSize);
@@ -702,14 +705,14 @@ isaBinaryHeapConstruct(uint64_t Capacity, isa_binary_heap_comparator<T> Comparat
 
 template <typename T>
 void
-isaBinaryHeapDestruct(isa_binary_heap<T> *Heap)
+IsaBinaryHeapDestruct(isa_binary_heap<T> *Heap)
 {
     if(Heap) free(Heap);
 }
 
 template <typename T>
 isa_binary_heap<T> *
-isaBinaryHeapRealloc(uint64_t NewCapacity, isa_binary_heap<T> *Heap)
+IsaBinaryHeapRealloc(uint64_t NewCapacity, isa_binary_heap<T> *Heap)
 {
     if(NewCapacity < Heap->Size)
     {
@@ -731,7 +734,7 @@ isaBinaryHeapRealloc(uint64_t NewCapacity, isa_binary_heap<T> *Heap)
 
 template <typename T>
 void 
-isaBinaryHeapHeapifyUp(isa_binary_heap<T> *Heap, uint64_t Index)
+IsaBinaryHeapHeapifyUp(isa_binary_heap<T> *Heap, uint64_t Index)
 {
     uint64_t ParentIndex = (Index - 1) / 2;
     while((Index > 0) && Heap->Compare(Heap->H[Index], Heap->H[ParentIndex]))
@@ -744,7 +747,7 @@ isaBinaryHeapHeapifyUp(isa_binary_heap<T> *Heap, uint64_t Index)
 
 template <typename T>
 void
-isaBinaryHeapHeapifyDown(isa_binary_heap<T> *Heap, uint64_t Index)
+IsaBinaryHeapHeapifyDown(isa_binary_heap<T> *Heap, uint64_t Index)
 {
     uint64_t LeftChild = 2 * Index + 1;
     uint64_t RightChild = 2 * Index + 2;
@@ -759,13 +762,13 @@ isaBinaryHeapHeapifyDown(isa_binary_heap<T> *Heap, uint64_t Index)
     if(LargestOrSmallest != Index)
     {
         Swap(Heap->H[Index], Heap->H[LargestOrSmallest]);
-        isaBinaryHeapHeapifyDown(Heap, LargestOrSmallest);
+        IsaBinaryHeapHeapifyDown(Heap, LargestOrSmallest);
     }
 }
 
 template <typename T>
 void
-isaBinaryHeapHeapify(isa_binary_heap<T> *Heap, uint64_t Index)
+IsaBinaryHeapHeapify(isa_binary_heap<T> *Heap, uint64_t Index)
 {
     uint64_t ParentIndex = (Index - 1) / 2;
     if(Index > 0 && Heap->Compare(Heap->H[Index], Heap->H[ParentIndex]))
@@ -774,13 +777,13 @@ isaBinaryHeapHeapify(isa_binary_heap<T> *Heap, uint64_t Index)
     }
     else
     {
-        isaisaBinaryHeapHeapifyDown(Heap, Index);
+        IsaisaBinaryHeapHeapifyDown(Heap, Index);
     }
 }
 
 template <typename T>
 void
-isaBinaryHeapInsert(isa_binary_heap<T> *Heap, T Value)
+IsaBinaryHeapInsert(isa_binary_heap<T> *Heap, T Value)
 {
     if(Heap->Size >= Heap->Capacity)
     {
@@ -790,12 +793,12 @@ isaBinaryHeapInsert(isa_binary_heap<T> *Heap, T Value)
 
     Heap->H[Heap->Size] = Value;
     Heap->Size++;
-    isaBinaryHeapHeapifyUp(Heap, Heap->Size - 1);
+    IsaBinaryHeapHeapifyUp(Heap, Heap->Size - 1);
 }
 
 template <typename T>
 T
-isaBinaryHeapPop(isa_binary_heap<T> *Heap)
+IsaBinaryHeapPop(isa_binary_heap<T> *Heap)
 {
     if(Heap->Size == 0)
     {
@@ -806,13 +809,13 @@ isaBinaryHeapPop(isa_binary_heap<T> *Heap)
     T MinValue = Heap->H[0];
     Heap->H[0] = Heap->H[Heap->Size - 1];
     Heap->Size--;
-    isaBinaryHeapHeapifyDown(Heap, 0);
+    IsaBinaryHeapHeapifyDown(Heap, 0);
     return MinValue;
 }
 
 template <typename T>
 T
-isaBinaryHeapPeek(isa_binary_heap<T> *Heap)
+IsaBinaryHeapPeek(isa_binary_heap<T> *Heap)
 {
     if(Heap->Size == 0)
     {
@@ -826,7 +829,7 @@ isaBinaryHeapPeek(isa_binary_heap<T> *Heap)
 
 template <typename T>
 void
-isaBinaryHeapIncreaseKey(isa_binary_heap<T> *Heap, uint64_t Index, T NewValue)
+IsaBinaryHeapIncreaseKey(isa_binary_heap<T> *Heap, uint64_t Index, T NewValue)
 {
     // Won't work on compound types 
     if(NewValue < Heap->H[Index])
@@ -836,12 +839,12 @@ isaBinaryHeapIncreaseKey(isa_binary_heap<T> *Heap, uint64_t Index, T NewValue)
     }
 
     Heap->H[Index] = NewValue;
-    isaBinaryHeapHeapifyUp(Heap, Index);
+    IsaBinaryHeapHeapifyUp(Heap, Index);
 }
 
 template <typename T>
 void
-isaBinaryHeapDecreaseKey(isa_binary_heap<T> *Heap, uint64_t Index, T NewValue)
+IsaBinaryHeapDecreaseKey(isa_binary_heap<T> *Heap, uint64_t Index, T NewValue)
 {
     // Won't work on compound types
     if(NewValue > Heap->H[Index])
@@ -851,12 +854,12 @@ isaBinaryHeapDecreaseKey(isa_binary_heap<T> *Heap, uint64_t Index, T NewValue)
     }
 
     Heap->H[Index] = NewValue;
-    isaBinaryHeapHeapifyDown(Heap, Index);
+    IsaBinaryHeapHeapifyDown(Heap, Index);
 }
 
 template <typename T>
 void
-isaBinaryHeapBuild(isa_binary_heap<T> *Heap, T *Array, uint64_t ArraySize)
+IsaBinaryHeapBuild(isa_binary_heap<T> *Heap, T *Array, uint64_t ArraySize)
 {
     if(ArraySize > Heap->Capacity)
     {
@@ -868,7 +871,7 @@ isaBinaryHeapBuild(isa_binary_heap<T> *Heap, T *Array, uint64_t ArraySize)
     Heap->Size = ArraySize;
     for(int64_t i = (ArraySize / 2) - 1; i >= 0; --i)
     {
-        isaBinaryHeapHeapifyDown(Heap, i);
+        IsaBinaryHeapHeapifyDown(Heap, i);
     }
 }
 
@@ -879,7 +882,7 @@ isaBinaryHeapBuild(isa_binary_heap<T> *Heap, T *Array, uint64_t ArraySize)
 
 template <typename T>
 T
-isaMedian3Sort(T *Arr, uint64_t L, uint64_t R)
+IsaMedian3Sort(T *Arr, uint64_t L, uint64_t R)
 {
     uint64_t Mid = (L + R) / 2;
 
@@ -903,7 +906,7 @@ isaMedian3Sort(T *Arr, uint64_t L, uint64_t R)
 
 template <typename T>
 T
-isaSplit(T *Arr, uint64_t L, uint64_t R)
+IsaSplit(T *Arr, uint64_t L, uint64_t R)
 {
     uint64_t Mid = Median3Sort(Arr, L, R);
     T SplitVal = Arr[Mid];
@@ -928,7 +931,7 @@ isaSplit(T *Arr, uint64_t L, uint64_t R)
 
 template <typename T>
 void
-isaFindMinAndMaxPos(T *Arr, uint64_t Len,
+IsaFindMinAndMaxPos(T *Arr, uint64_t Len,
                     uint64_t *MinPos, uint64_t *MaxPos)
 {
     T Min = Arr[0];
@@ -959,7 +962,7 @@ isaFindMinAndMaxPos(T *Arr, uint64_t Len,
 
 template <typename T>
 void
-isaQuicksortRecursiveStep(T *Arr, uint64_t ArrayLen, uint64_t L, uint64_t R)
+IsaQuicksortRecursiveStep(T *Arr, uint64_t ArrayLen, uint64_t L, uint64_t R)
 {
     if(Arr[L - 1] == Arr[R + 1]) return;
 
@@ -977,7 +980,7 @@ isaQuicksortRecursiveStep(T *Arr, uint64_t ArrayLen, uint64_t L, uint64_t R)
 
 template <typename T>
 void
-isaQuicksort(T *Arr, uint64_t ArrayLen)
+IsaQuicksort(T *Arr, uint64_t ArrayLen)
 {
     uint64_t MinPos, MaxPos;
     FindMinAndMaxPos(Arr, ArrayLen, &MinPos, &MaxPos);

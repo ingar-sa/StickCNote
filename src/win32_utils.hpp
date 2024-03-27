@@ -43,13 +43,3 @@ PrintLastError(LPCWSTR FuncThatSetError)
     LocalFree(DisplayBuffer);
 }
 
-#define internal static
-#define local_persist static
-#define global_variable static
-
-#define KiloBytes(Value) ((Value) * 1024ULL)
-#define MegaBytes(Value) (KiloBytes(Value) * 1024ULL)
-#define GigaBytes(Value) (MegaBytes(Value) * 1024ULL)
-#define TeraBytes(Value) (GigaBytes(Value) * 1024ULL)
-
-

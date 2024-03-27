@@ -4,20 +4,12 @@
 
 
 #include "isa.hpp"
-#include "scn.hpp"
-
+#include "mem.hpp"
  // TODO(ingar): More error handling and null-pointer checks
 
-struct mem_arena
-{
-    size_t Size;
-
-    uintptr_t Start;
-    size_t    Offset;
-};
 
 void
-CreateMemArena(mem_arena *Arena, void *Mem, size_t Size)
+InitMemArena(mem_arena *Arena, void *Mem, size_t Size)
 {
     Arena->Size = Size;
     Arena->Start = (uintptr_t)Mem;
@@ -37,15 +29,19 @@ DestroyMemArena(mem_arena **Arena)
 
 
 void *
-ArenaAlloc(mem_arena *Arena, size_t Size)
+ArenaAlloc_(mem_arena *Arena, size_t Size, size_t Alignment)
 {
-    IsaAssert(Arena->Offset + Size <= Arena->Size);
+    IsaAssert((Alignment & (Alignment - 1)) == 0);
 
-    void *MemStart = (void *)(Arena->Start + Arena->Offset);
+    size_t Adjustment = (Alignment - (Arena->Offset + (Alignment - 1)) & (Alignment - 1));
+    IsaAssert(Arena->Offset + Adjustment + Size <= Arena->Size);
 
-    Arena->Offset += Size;
+    Arena->Offset += Adjustment;
 
-    return MemStart;
+    void *AlignedMemStart = (void *)(Arena->Start + Arena->Offset);
+    Arena->Offset += Size; // Increase the offset by the size of the allocation
+
+    return AlignedMemStart;
 }
 
 void
