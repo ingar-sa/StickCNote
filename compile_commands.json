@@ -1,8 +1,7 @@
 [
-   {
-	"directory": "W:/stickCnote",
-    "command": "cl /MTd /nologo /GL /GR- /EHsc /Od /Oi /W4 /wd4201 /wd4100 /wd4189 /wd4505 /Zi /std:c++20 /DUNICODE /Fe\"build/\" /Fo\"build/\" /Fd\"build/\" /Fm\"build/\"",
-    "file": "main.cpp"
-    }
+  {
+    "directory": "W:/StickCNote",
+    "command": "cl /MTd /nologo /GL /GR- /Od /Oi /W4 /wd4201 /wd4100 /wd4189 /wd4505 /Zi /DUNICODE /Fe\"build/\" /Fo\"build/\" /Fd\"build/\" /Fm\"build/\"",
+    "file": "main.c"
+  }
 ]
-
