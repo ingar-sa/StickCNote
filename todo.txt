@@ -1,2 +1,4 @@
 
-   #define your own functions "STBTT_malloc" / "STBTT_free" to avoid malloc.h
+Next: Figure out how to store rects in the memory and draw them during the update backbuffer call
+
+#define your own functions "STBTT_malloc" / "STBTT_free" to avoid malloc.h
