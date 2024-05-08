@@ -1,7 +1,5 @@
-#pragma once
-
-#include "isa.h"
-#include "scn_intrinsics.h"
+#ifndef SCN_MATH_
+#define SCN_MATH_
 
 union v2
 {
@@ -31,7 +29,7 @@ V2(float x, float y)
 }
 
 inline v2
-operator+(v2& a, v2& b)
+operator+(v2 &a, v2 &b)
 {
     v2 Result;
     Result.x = a.x + b.x;
@@ -40,7 +38,7 @@ operator+(v2& a, v2& b)
 }
 
 inline v2
-operator-(v2& a, v2& b)
+operator-(v2 &a, v2 &b)
 {
     v2 Result;
     Result.x = a.x - b.x;
@@ -49,7 +47,7 @@ operator-(v2& a, v2& b)
 }
 
 inline v2
-operator-(v2& a)
+operator-(v2 &a)
 {
     a.x = -a.x;
     a.y = -a.y;
@@ -81,10 +79,10 @@ SeedRandPcg_(u32 Seed)
 inline u32
 GetRandu32(void)
 {
-    uint32_t State = *GetPcgState_();
+    uint32_t State  = *GetPcgState_();
     *GetPcgState_() = State * 747796405u + 2891336453u;
-    uint32_t Word = ((State >> ((State >> 28u) + 4u)) ^ State) * 277803737u;
-    return (Word >> 22u) ^ Word;   
+    uint32_t Word   = ((State >> ((State >> 28u) + 4u)) ^ State) * 277803737u;
+    return (Word >> 22u) ^ Word;
 }
 
 inline u32
@@ -93,3 +91,5 @@ GetRandu32InRange(u32 Min, u32 Max)
     double Scalar = (double)GetRandu32() / (double)(UINT32_MAX);
     return (u32)(Min + (Scalar * (Max - Min)));
 }
+
+#endif // SCN_MATH_

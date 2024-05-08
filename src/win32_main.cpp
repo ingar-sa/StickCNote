@@ -9,8 +9,11 @@
  *
  */
 
-#include "consts.h"
 #include "isa.h"
+
+ISA_LOG_REGISTER(WinMain);
+
+#include "consts.h"
 #include "scn.h" // TODO(ingar): Split into scn and scn_platform?
 #include "win32_utils.h"
 
@@ -112,7 +115,7 @@ isa_internal void
 CatStringsTchar(u64 SourceACount, const TCHAR *SourceA, u64 SourceBCount, const TCHAR *SourceB, u64 DestCount,
                 TCHAR *Dest)
 {
-    IsaAssert(SourceACount + SourceBCount < DestCount);
+    // IsaAssert(SourceACount + SourceBCount < DestCount, "ERror");
 
     for(u64 Index = 0; Index < SourceACount; ++Index)
     {
@@ -530,18 +533,18 @@ WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLineString, int
     AppendToEXEFilePathTchar(APP_DLL_TEMP_NAME_TEXT, Scn.TempDllName, MAX_PATH);
 
 #ifndef NAPP_DEBUG
-    LPVOID BaseAddressPermanentMem = (LPVOID)TeraByte(1);
-    LPVOID BaseAddressWorkMem      = (LPVOID)TeraByte(2);
+    LPVOID BaseAddressPermanentMem = (LPVOID)IsaTeraByte(1);
+    LPVOID BaseAddressWorkMem      = (LPVOID)IsaTeraByte(2);
 #else
     LPVOID BaseAddressPermanentMem = 0;
     LPVOID BaseAddressWorkMem      = 0;
 #endif
 
-    Scn.Mem.PermanentMemSize = MegaByte(64);
+    Scn.Mem.PermanentMemSize = IsaMegaByte(64);
     Scn.Mem.Permanent
         = VirtualAlloc(BaseAddressPermanentMem, Scn.Mem.PermanentMemSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    Scn.Mem.SessionMemSize = MegaByte(128);
+    Scn.Mem.SessionMemSize = IsaMegaByte(128);
     Scn.Mem.Session
         = VirtualAlloc(BaseAddressWorkMem, Scn.Mem.SessionMemSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 

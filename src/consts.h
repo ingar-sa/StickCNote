@@ -1,10 +1,10 @@
 /*
  * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
-*/
+ */
 
-#pragma once
+#ifndef CONSTS_H_
+#define CONSTS_H_
 
-//const char OmsDllName[] = "oms.dll";
 #define APP_DLL_NAME_CHAR "scn.dll"
 #define APP_DLL_NAME_TEXT TEXT(APP_DLL_NAME_CHAR)
 
@@ -17,4 +17,4 @@
 #define PRUSSIAN_BLUE 0x143651
 #define FRENCH_ROSE 0xEB5B95
 
-
+#endif // CONSTS_H_

@@ -1,8 +1,5 @@
-#pragma once
-
-#include "isa.h"
-
-#include "math.h"
+#ifndef SCN_INTRINSICS_H_
+#define SCN_INTRINSICS_H_
 
 inline i32
 SignOfi32(i32 Value)
@@ -65,14 +62,14 @@ RoundFloatTou32(float Float)
     return Result;
 }
 
-inline i32 
+inline i32
 FloorFloatToi32(float Float)
 {
     i32 Result = (i32)floorf(Float);
     return Result;
 }
 
-inline i32 
+inline i32
 CeilFloatToi32(float Float)
 {
     i32 Result = (i32)ceilf(Float);
@@ -100,14 +97,14 @@ RoundFloatTou64(float Float)
     return Result;
 }
 
-inline i64 
+inline i64
 FloorFloatToi64(float Float)
 {
     i64 Result = (i64)floorf(Float);
     return Result;
 }
 
-inline i64 
+inline i64
 CeilFloatToi64(float Float)
 {
     i64 Result = (i64)ceilf(Float);
@@ -120,3 +117,5 @@ TruncateFloatToi64(float Float)
     i64 Result = (i64)Float;
     return Result;
 }
+
+#endif // SCN_INTRINSICS_H_

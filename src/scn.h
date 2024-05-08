@@ -1,21 +1,23 @@
 /*
  * Copyright 2024 (c) by Ingar Solveigson Asheim. All Rights Reserved.
-*/
+ */
 
+#ifndef SCN_H_
+#define SCN_H_
 
-#pragma once
-
+#include "consts.h"
 #include "isa.h"
+#include "scn_math.h"
 
 struct scn_mem
 {
     bool Initialized;
 
     size_t PermanentMemSize;
-    void *Permanent;
+    void  *Permanent;
 
     size_t SessionMemSize;
-    void *Session;
+    void  *Session;
 };
 
 // TODO(ingar): Make the storage of this internal to scn instead of the
@@ -44,9 +46,45 @@ enum scn_mouse_event_type
 struct scn_mouse_event
 {
     scn_mouse_event_type Type;
-    i64 x, y;
+    i64                  x, y;
 };
 
+union u32_argb
+{
+    struct
+    {
+        u8 b, g, r, a;
+    };
+
+    u8  BGRA[4];
+    u32 U32;
+};
+
+struct gui_rect
+{
+    rect           Dim;
+    union u32_argb Color;
+};
+
+isa_global struct bg_landscape
+{
+    union u32_argb Color = { .U32 = (u32)PRUSSIAN_BLUE };
+    i64            x, y;
+
+} Bg;
+
+// TODO(ingar): All of the static structs should proabably be part of
+// the permanent memory so that they can be stored on disk
+isa_global struct mouse_history
+{
+    bool LClicked = false;
+    bool RClicked = false;
+
+    scn_mouse_event Prev;
+    scn_mouse_event PrevLClick;
+    scn_mouse_event PrevRClick;
+
+} MouseHistory;
 
 // TODO(ingar): In order to reserve arenas for different purposes, we need to
 // keep track of where each arena is on the stack, as well as the next point
@@ -56,7 +94,7 @@ struct scn_mouse_event
 // an "infinite" amount of entities, we have to find a way to support this.
 struct scn_state
 {
-    isa_mem_arena Arena;
+    isa_arena Arena;
 };
 
 // TODO(ingar): Add (and figure out what it is) thread context
@@ -65,7 +103,7 @@ typedef UPDATE_BACK_BUFFER(update_back_buffer);
 
 extern "C" UPDATE_BACK_BUFFER(UpdateBackBufferStub)
 {
-    //DebugPrint("UpdateBackBufferStub was called!\n");
+    // DebugPrint("UpdateBackBufferStub was called!\n");
     assert(0 /*UpdateBackBufferStub was called!*/);
 }
 
@@ -73,7 +111,7 @@ extern "C" UPDATE_BACK_BUFFER(UpdateBackBufferStub)
 typedef RESPOND_TO_MOUSE(respond_to_mouse);
 extern "C" RESPOND_TO_MOUSE(RespondToMouseStub)
 {
-    //DebugPrint("RespondToMouseStub was called!\n");
+    // DebugPrint("RespondToMouseStub was called!\n");
     assert(0 /*RespondToMouseStub was called!*/);
 }
 
@@ -84,6 +122,8 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouseStub)
 typedef SEED_RAND_PCG(seed_rand_pcg);
 extern "C" SEED_RAND_PCG(SeedRandPcgStub)
 {
-    //DebugPrint("RespondToMouseStub was called!\n");
+    // DebugPrint("RespondToMouseStub was called!\n");
     assert(0 /*SeedRandPcgStub was called!*/);
 }
+
+#endif // SCN_H_
