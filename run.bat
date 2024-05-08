@@ -4,7 +4,7 @@ setlocal
 IF NOT EXIST build mkdir build
 
 cd build
-StickCNote.exe
+remedybg StickCNote.exe
 
 endlocal
 exit
