@@ -1,1 +1,0 @@
-Next: Figure out how to store rects in the memory and draw them during the update backbuffer call
