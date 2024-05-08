@@ -14,6 +14,19 @@ ISA_LOG_REGISTER(Scn);
 #include "scn_intrinsics.h"
 #include "scn.h"
 
+// TODO(ingar): All of the static structs should proabably be part of
+// the permanent memory so that they can be stored on disk
+isa_global struct mouse_history
+{
+    bool LClicked = false;
+    bool RClicked = false;
+
+    scn_mouse_event Prev;
+    scn_mouse_event PrevLClick;
+    scn_mouse_event PrevRClick;
+
+} MouseHistory;
+
 isa_internal void
 UpdateBg(u32_argb NewColor)
 {
@@ -39,6 +52,15 @@ InitScnState(scn_mem *Mem)
     {
         State->Arena
             = IsaArenaCreate((u8 *)Mem->Permanent + sizeof(scn_state), Mem->PermanentMemSize - sizeof(scn_state));
+
+        // TODO(ingar): Make the pool a part of the state struct instead of allocating it through the arena?
+        const u32        MAX_NOTES      = 1024;
+        note_collection *NoteCollection = IsaPushStructZero(&State->Arena, note_collection);
+        isa_arena       *NoteArena      = IsaPushStructZero(&State->Arena, isa_arena);
+        NoteCollection->MaxCount        = MAX_NOTES;
+        NoteCollection->Arena           = NoteArena;
+        State->Notes                    = NoteCollection;
+
         Mem->Initialized = true;
     }
 
@@ -71,6 +93,7 @@ DrawRect(scn_offscreen_buffer Buffer, i64 X, i64 Y, i64 Width, i64 Height, u32_a
         Row += Pitch;
     }
 }
+
 // NOTE(ingar): Casey says that your code should not be split up in this way
 // the code that updates state and then renders should be executed
 // simultaneously so we might want to do that NOTE(ingar): This was also in the
@@ -80,7 +103,6 @@ DrawRect(scn_offscreen_buffer Buffer, i64 X, i64 Y, i64 Width, i64 Height, u32_a
 extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 {
     scn_state *ScnState = InitScnState(&Mem);
-    IsaAssert(false, "Log message");
 
     // TODO(ingar): Convert to switch
     if(Event.Type == ScnMouseEvent_LDown)
@@ -99,28 +121,28 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
             i64 PrevX = MouseHistory.PrevLClick.x;
             i64 PrevY = MouseHistory.PrevLClick.y;
 
-            rect NewRectDim = { V2(0, 0), V2(0, 0) };
+            rect NewRect = { V2(0, 0), V2(0, 0) };
 
             if(PrevX < Event.x)
             {
-                NewRectDim.min.x = (float)PrevX;
-                NewRectDim.max.x = (float)Event.x;
+                NewRect.min.x = (float)PrevX;
+                NewRect.max.x = (float)Event.x;
             }
             else
             {
-                NewRectDim.min.x = (float)Event.x;
-                NewRectDim.max.x = (float)PrevX;
+                NewRect.min.x = (float)Event.x;
+                NewRect.max.x = (float)PrevX;
             }
 
             if(PrevY < Event.x)
             {
-                NewRectDim.min.y = (float)PrevY;
-                NewRectDim.max.y = (float)Event.y;
+                NewRect.min.y = (float)PrevY;
+                NewRect.max.y = (float)Event.y;
             }
             else
             {
-                NewRectDim.min.y = (float)Event.y;
-                NewRectDim.max.y = (float)PrevY;
+                NewRect.min.y = (float)Event.y;
+                NewRect.max.y = (float)PrevY;
             }
 
             // TODO(ingar): We need to push ui elements into memory which
@@ -128,12 +150,10 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
             // TODO(ingar): Since the functions are ran on timers, this
             // probably means that we need synchronization mechanisms so that
             // new elements are not pushed simultaneously with the drawing
-            u32_argb NewRectColor;
-            NewRectColor.U32 = GetRandu32();
 
-            gui_rect *NewRect = IsaPushStructZero(&ScnState->Arena, gui_rect);
-            NewRect->Dim      = NewRectDim;
-            // PushStruct(ScnState->Arena, NewRect);
+            // TODO(ingar): Add bounds checking for z
+            note *NewNote = IsaPushStructZero(ScnState->Notes->Arena, note);
+            FillNote(NewNote, NewRect, ScnState->Notes->CurZ++, U32Argb(255, 0, 0, 255));
         }
 
         MouseHistory.LClicked = false;
@@ -159,4 +179,13 @@ extern "C" UPDATE_BACK_BUFFER(UpdateBackBuffer)
 
     /* Draw background */
     DrawRect(Buffer, 0, 0, Buffer.w, Buffer.h, Bg.Color);
+
+    note *Notes = (note *)ScnState->Notes->Arena->Mem;
+    for(u64 i = 0; i < ScnState->Notes->Count; ++i)
+    {
+        note Note = Notes[i];
+
+        DrawRect(Buffer, Note.Rect.min.x, Note.Rect.min.y, Note.Rect.max.x - Note.Rect.min.x,
+                 Note.Rect.max.y - Note.Rect.min.y, Note.Color);
+    }
 }

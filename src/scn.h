@@ -49,6 +49,7 @@ struct scn_mouse_event
     i64                  x, y;
 };
 
+// TODO(ingar): Add/convert float-based colors
 union u32_argb
 {
     struct
@@ -60,31 +61,51 @@ union u32_argb
     u32 U32;
 };
 
+inline u32_argb
+U32Argb(u8 b, u8 g, u8 r, u8 a)
+{
+    u32_argb Color = {
+        { b, g, r, a }
+    };
+    return Color;
+}
+
 struct gui_rect
 {
-    rect           Dim;
-    union u32_argb Color;
+    rect     Dim;
+    u32_argb Color;
 };
 
 isa_global struct bg_landscape
 {
-    union u32_argb Color = { .U32 = (u32)PRUSSIAN_BLUE };
-    i64            x, y;
+    u32_argb Color = { .U32 = (u32)PRUSSIAN_BLUE };
+    i64      x, y;
 
 } Bg;
 
-// TODO(ingar): All of the static structs should proabably be part of
-// the permanent memory so that they can be stored on disk
-isa_global struct mouse_history
+struct note
 {
-    bool LClicked = false;
-    bool RClicked = false;
+    rect     Rect;
+    float    z;
+    u32_argb Color;
+    note    *Next;
+};
 
-    scn_mouse_event Prev;
-    scn_mouse_event PrevLClick;
-    scn_mouse_event PrevRClick;
+void
+FillNote(note *Note, rect Rect, float z, u32_argb Color)
+{
+    Note->Rect  = Rect;
+    Note->z     = z;
+    Note->Color = Color;
+}
 
-} MouseHistory;
+struct note_collection
+{
+    u64        MaxCount;
+    u64        Count;
+    float      CurZ;
+    isa_arena *Arena;
+};
 
 // TODO(ingar): In order to reserve arenas for different purposes, we need to
 // keep track of where each arena is on the stack, as well as the next point
@@ -94,7 +115,8 @@ isa_global struct mouse_history
 // an "infinite" amount of entities, we have to find a way to support this.
 struct scn_state
 {
-    isa_arena Arena;
+    isa_arena        Arena;
+    note_collection *Notes;
 };
 
 // TODO(ingar): Add (and figure out what it is) thread context
