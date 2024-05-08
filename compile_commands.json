@@ -1,7 +1,7 @@
 [
   {
     "directory": "W:/StickCNote",
-    "command": "cl /MTd /nologo /GL /GR- /Od /Oi /W4 /wd4201 /wd4100 /wd4189 /wd4505 /Zi /DUNICODE /Fe\"build/\" /Fo\"build/\" /Fd\"build/\" /Fm\"build/\"",
-    "file": "main.c"
+    "command": "cl /MTd /nologo /EHsc /GL /GR- /Od /Oi /W4 /wd4201 /wd4100 /wd4189 /wd4505 /std:c++20 /Zi /DUNICODE /Fe\"build/\" /Fo\"build/\" /Fd\"build/\" /Fm\"build/\"",
+    "file": "src/scn.cpp"
   }
 ]
