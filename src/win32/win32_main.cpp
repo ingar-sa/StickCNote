@@ -9,12 +9,12 @@
  *
  */
 
-#include "isa.h"
+#include "../isa.h"
 
 ISA_LOG_REGISTER(WinMain);
 
-#include "consts.h"
-#include "scn.h" // TODO(ingar): Split into scn and scn_platform?
+#include "../consts.h"
+#include "../scn.h" // TODO(ingar): Split into scn and scn_platform?
 #include "win32_utils.h"
 
 // #define STB_TRUETYPE_IMPLEMENTATION

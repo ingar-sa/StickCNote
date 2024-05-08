@@ -6,13 +6,13 @@
 
 ISA_LOG_REGISTER(Scn);
 
+#include "win32/resources.h"
+#include "win32/win32_utils.h"
+
 #include "consts.h"
-#include "resources.h"
 #include "scn_math.h"
 #include "scn_intrinsics.h"
 #include "scn.h"
-
-#include "win32_utils.h"
 
 isa_internal void
 UpdateBg(u32_argb NewColor)

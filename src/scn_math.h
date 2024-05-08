@@ -1,6 +1,8 @@
 #ifndef SCN_MATH_
 #define SCN_MATH_
 
+#include "isa.h"
+
 union v2
 {
     struct

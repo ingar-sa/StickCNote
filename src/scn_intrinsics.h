@@ -1,6 +1,8 @@
 #ifndef SCN_INTRINSICS_H_
 #define SCN_INTRINSICS_H_
 
+#include "isa.h"
+
 inline i32
 SignOfi32(i32 Value)
 {
