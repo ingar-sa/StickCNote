@@ -299,6 +299,8 @@ Win32ResizeDibSection(LONG Width, LONG Height)
     WindowBuffer.Mem = Scn.Mem.Session;
 }
 
+// TODO(ingar): I'm a bit confused as to why the window dimensions are passed in. They seem to be the same as the
+// WindowBuffer dimensions, so them being parameter might be artifacts from Casey's implementation.
 isa_internal void
 Win32UpdateWindow(HDC DeviceContext, LONG Width, LONG Height)
 {
@@ -312,7 +314,7 @@ Win32UpdateWindow(HDC DeviceContext, LONG Width, LONG Height)
     BackBuffer.Mem           = WindowBuffer.Mem;
     BackBuffer.BytesPerPixel = WindowBuffer.BytesPerPixel;
 
-    Scn.UpdateBackBuffer(Scn.Mem, BackBuffer);
+    Scn.UpdateBackBuffer(&Scn.Mem, BackBuffer);
 
     StretchDIBits(DeviceContext, 0, 0, Width, Height, 0, 0, WindowBuffer.Width, WindowBuffer.Height, WindowBuffer.Mem,
                   &WindowBuffer.DIBInfo, DIB_RGB_COLORS, SRCCOPY);
@@ -386,7 +388,7 @@ Win32MainWindowCallback(HWND Window, UINT SystemMessage, WPARAM WParams, LPARAM 
                 Event.Type = WmToMouseEventType(SystemMessage);
                 Event.x    = LOWORD(LParams);
                 Event.y    = HIWORD(LParams);
-                Scn.RespondToMouse(Scn.Mem, Event);
+                Scn.RespondToMouse(&Scn.Mem, Event);
             }
             break;
         case WM_COMMAND:

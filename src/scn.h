@@ -83,12 +83,15 @@ isa_global struct bg_landscape
 
 } Bg;
 
+// TODO(ingar): NOTE to self. When dragging, there should be a partially transparent rectangle that shows what the note
+// will look like. There should also be a simple color picker, and you could adjust the opacity (or something else) by
+// scrolling while choosing the color.
 struct note
 {
     rect     Rect;
     float    z;
     u32_argb Color;
-    note    *Next;
+    // note    *Next;
 };
 
 void
@@ -120,7 +123,7 @@ struct scn_state
 };
 
 // TODO(ingar): Add (and figure out what it is) thread context
-#define UPDATE_BACK_BUFFER(name) void name(scn_mem Mem, scn_offscreen_buffer Buffer)
+#define UPDATE_BACK_BUFFER(name) void name(scn_mem *Mem, scn_offscreen_buffer Buffer)
 typedef UPDATE_BACK_BUFFER(update_back_buffer);
 
 extern "C" UPDATE_BACK_BUFFER(UpdateBackBufferStub)
@@ -129,7 +132,7 @@ extern "C" UPDATE_BACK_BUFFER(UpdateBackBufferStub)
     assert(0 /*UpdateBackBufferStub was called!*/);
 }
 
-#define RESPOND_TO_MOUSE(name) void name(scn_mem Mem, scn_mouse_event Event)
+#define RESPOND_TO_MOUSE(name) void name(scn_mem *Mem, scn_mouse_event Event)
 typedef RESPOND_TO_MOUSE(respond_to_mouse);
 extern "C" RESPOND_TO_MOUSE(RespondToMouseStub)
 {

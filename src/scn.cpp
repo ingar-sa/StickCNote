@@ -25,6 +25,8 @@ isa_global struct mouse_history
     scn_mouse_event PrevLClick;
     scn_mouse_event PrevRClick;
 
+    v2 PrevLClickPos;
+
 } MouseHistory;
 
 isa_internal void
@@ -53,13 +55,15 @@ InitScnState(scn_mem *Mem)
         State->Arena
             = IsaArenaCreate((u8 *)Mem->Permanent + sizeof(scn_state), Mem->PermanentMemSize - sizeof(scn_state));
 
-        // TODO(ingar): Make the pool a part of the state struct instead of allocating it through the arena?
-        const u32        MAX_NOTES      = 1024;
+        const u32 MAX_NOTES = 1024;
+
         note_collection *NoteCollection = IsaPushStructZero(&State->Arena, note_collection);
         isa_arena       *NoteArena      = IsaPushStructZero(&State->Arena, isa_arena);
-        NoteCollection->MaxCount        = MAX_NOTES;
-        NoteCollection->Arena           = NoteArena;
-        State->Notes                    = NoteCollection;
+        IsaArenaCreate(NoteArena, IsaPushArray(&State->Arena, note, MAX_NOTES), MAX_NOTES * sizeof(note));
+
+        NoteCollection->MaxCount = MAX_NOTES;
+        NoteCollection->Arena    = NoteArena;
+        State->Notes             = NoteCollection;
 
         Mem->Initialized = true;
     }
@@ -76,16 +80,20 @@ ArgbFromu32(u32 Color)
 }
 
 isa_internal void
-DrawRect(scn_offscreen_buffer Buffer, i64 X, i64 Y, i64 Width, i64 Height, u32_argb Color)
+DrawRect(scn_offscreen_buffer Buffer, v2 Min, v2 Max, u32_argb Color)
 {
+    i32 StartX = RoundFloatToi32(Min.x);
+    i32 StartY = RoundFloatToi32(Min.y);
+    i32 EndX   = RoundFloatToi32(Max.x);
+    i32 EndY   = RoundFloatToi32(Max.y);
     // TODO(ingar): Bounds checking
     i64 Pitch = Buffer.w * Buffer.BytesPerPixel;
-    u8 *Row   = ((u8 *)Buffer.Mem) + (Y * Pitch) + X;
+    u8 *Row   = ((u8 *)Buffer.Mem) + (StartY * Pitch) + StartX;
 
-    for(i64 y = Y; y < Y + Height; ++y)
+    for(i64 y = StartY; y < EndY; ++y)
     {
         u32 *Pixel = (u32 *)Row;
-        for(i64 x = X; x < X + Width; ++x)
+        for(i64 x = StartX; x < EndX; ++x)
         {
             *Pixel++ = Color.U32;
         }
@@ -102,12 +110,13 @@ DrawRect(scn_offscreen_buffer Buffer, i64 X, i64 Y, i64 Width, i64 Height, u32_a
 
 extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 {
-    scn_state *ScnState = InitScnState(&Mem);
+    scn_state *ScnState = InitScnState(Mem);
 
     // TODO(ingar): Convert to switch
     if(Event.Type == ScnMouseEvent_LDown)
     {
-        MouseHistory.LClicked = true;
+        MouseHistory.LClicked      = true;
+        MouseHistory.PrevLClickPos = V2(Event.x, Event.y);
     }
     else if(Event.Type == ScnMouseEvent_RDown)
     {
@@ -118,12 +127,13 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
     {
         if(MouseHistory.Prev.Type == ScnMouseEvent_Move)
         {
-            i64 PrevX = MouseHistory.PrevLClick.x;
-            i64 PrevY = MouseHistory.PrevLClick.y;
+            i64 PrevX = MouseHistory.PrevLClickPos.x;
+            i64 PrevY = MouseHistory.PrevLClickPos.y;
 
+            // TODO(ingar): The min v2 is not initialized properly. It is always set to 0,0
             rect NewRect = { V2(0, 0), V2(0, 0) };
 
-            if(PrevX < Event.x)
+            if(PrevX <= Event.x)
             {
                 NewRect.min.x = (float)PrevX;
                 NewRect.max.x = (float)Event.x;
@@ -134,7 +144,7 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
                 NewRect.max.x = (float)PrevX;
             }
 
-            if(PrevY < Event.x)
+            if(PrevY <= Event.y)
             {
                 NewRect.min.y = (float)PrevY;
                 NewRect.max.y = (float)Event.y;
@@ -152,8 +162,10 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
             // new elements are not pushed simultaneously with the drawing
 
             // TODO(ingar): Add bounds checking for z
+            // TODO(ingar): There seems to be a zero-width/height note pushed before any are drawn by the user
             note *NewNote = IsaPushStructZero(ScnState->Notes->Arena, note);
-            FillNote(NewNote, NewRect, ScnState->Notes->CurZ++, U32Argb(255, 0, 0, 255));
+            FillNote(NewNote, NewRect, ScnState->Notes->CurZ++, U32Argb(255, 255, 255, 255));
+            ScnState->Notes->Count++;
         }
 
         MouseHistory.LClicked = false;
@@ -175,17 +187,18 @@ extern "C" SEED_RAND_PCG(SeedRandPcg)
 
 extern "C" UPDATE_BACK_BUFFER(UpdateBackBuffer)
 {
-    scn_state *ScnState = InitScnState(&Mem);
+    scn_state *ScnState = InitScnState(Mem);
 
     /* Draw background */
-    DrawRect(Buffer, 0, 0, Buffer.w, Buffer.h, Bg.Color);
+    // TODO(ingar): Check if background is already filled and skip drawing it?
+    DrawRect(Buffer, V2(0, 0), V2(Buffer.w, Buffer.h), Bg.Color);
 
     note *Notes = (note *)ScnState->Notes->Arena->Mem;
     for(u64 i = 0; i < ScnState->Notes->Count; ++i)
     {
         note Note = Notes[i];
 
-        DrawRect(Buffer, Note.Rect.min.x, Note.Rect.min.y, Note.Rect.max.x - Note.Rect.min.x,
-                 Note.Rect.max.y - Note.Rect.min.y, Note.Color);
+        // TODO(ingar): Same check as with the background?
+        DrawRect(Buffer, Note.Rect.min, Note.Rect.max, Note.Color);
     }
 }

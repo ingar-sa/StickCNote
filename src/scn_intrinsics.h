@@ -20,7 +20,7 @@ SquareRoot(float Float)
 inline float
 AbsoluteValue(float Float)
 {
-    float Result = fabs(Float);
+    float Result = (float)fabs(Float);
     return Result;
 }
 
