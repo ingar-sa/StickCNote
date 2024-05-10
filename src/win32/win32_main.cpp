@@ -518,10 +518,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLineString, int
         return FALSE;
     }
 
+    // TODO(ingar): The buffer the application draws to seems to be w=984 h=961. Hmmm
+    int WindowWidth  = 1000;
+    int WindowHeight = 1000;
+
     HWND Window = {};
     Window      = CreateWindowEx(0, WindowClass.lpszClassName, TEXT("StickCNote"),
                                  WS_OVERLAPPEDWINDOW | WS_VISIBLE, // Comment out WS_VISIBLE to start in minimized mode
-                                 CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
+                                 CW_USEDEFAULT, CW_USEDEFAULT, WindowWidth, WindowHeight, 0, 0, Instance, 0);
 
     if(!Window)
     {

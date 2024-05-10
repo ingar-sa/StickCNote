@@ -86,9 +86,27 @@ DrawRect(scn_offscreen_buffer Buffer, v2 Min, v2 Max, u32_argb Color)
     i32 StartY = RoundFloatToi32(Min.y);
     i32 EndX   = RoundFloatToi32(Max.x);
     i32 EndY   = RoundFloatToi32(Max.y);
-    // TODO(ingar): Bounds checking
+
+    // Ensure StartX, StartY, EndX, EndY are within the buffer bounds
+    if(StartX < 0)
+    {
+        StartX = 0;
+    }
+    if(StartY < 0)
+    {
+        StartY = 0;
+    }
+    if(EndX > Buffer.w)
+    {
+        EndX = Buffer.w;
+    }
+    if(EndY > Buffer.h)
+    {
+        EndY = Buffer.h;
+    }
+
     i64 Pitch = Buffer.w * Buffer.BytesPerPixel;
-    u8 *Row   = ((u8 *)Buffer.Mem) + (StartY * Pitch) + StartX;
+    u8 *Row   = ((u8 *)Buffer.Mem) + (StartY * Pitch) + (StartX * Buffer.BytesPerPixel);
 
     for(i64 y = StartY; y < EndY; ++y)
     {
@@ -123,6 +141,8 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
         MouseHistory.RClicked = true;
     }
 
+    // TODO(ingar): Make sure that int->float->int conversions actually function correctly. I think there are
+    // inaccuracies as it is now
     if(Event.Type == ScnMouseEvent_LUp)
     {
         if(MouseHistory.Prev.Type == ScnMouseEvent_Move)
@@ -163,6 +183,7 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 
             // TODO(ingar): Add bounds checking for z
             // TODO(ingar): There seems to be a zero-width/height note pushed before any are drawn by the user
+            // TODO(ingar): There is overdraw when the window becomse less than the width or height of a note
             note *NewNote = IsaPushStructZero(ScnState->Notes->Arena, note);
             FillNote(NewNote, NewRect, ScnState->Notes->CurZ++, U32Argb(255, 255, 255, 255));
             ScnState->Notes->Count++;
