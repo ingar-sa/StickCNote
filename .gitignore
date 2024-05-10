@@ -132,3 +132,5 @@ Thumbs.db
 build/
 
 .cache
+.clang-format
+src/isa.h
