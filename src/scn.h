@@ -84,6 +84,19 @@ isa_global struct bg_landscape
 
 } Bg;
 
+struct mouse_history
+{
+    bool LClicked = false;
+    bool RClicked = false;
+
+    scn_mouse_event Prev;
+    scn_mouse_event PrevLClick;
+    scn_mouse_event PrevRClick;
+
+    v2 PrevLClickPos;
+    v2 PrevRClickPos;
+};
+
 // TODO(ingar): NOTE to self. When dragging, there should be a partially transparent rectangle that shows what the note
 // will look like. There should also be a simple color picker, and you could adjust the opacity (or something else) by
 // scrolling while choosing the color.
@@ -106,6 +119,7 @@ struct note_collection
 struct stbtt_ctx
 {
     isa_arena *Arena;
+    size_t     MemSize;
 };
 
 // NOTE(ingar): The items in the state that require a "substantial amount of memory will be pushed onto one of the
@@ -114,6 +128,7 @@ struct scn_state
 {
     isa_arena        PermArena;
     note_collection *Notes;
+    mouse_history   *MouseHistory;
 
     isa_arena  SessionArena;
     stbtt_ctx *Stbtt;

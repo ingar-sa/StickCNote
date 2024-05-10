@@ -19,21 +19,6 @@ ISA_LOG_REGISTER(Scn);
 #include "scn_intrinsics.h"
 #include "scn.h"
 
-// TODO(ingar): All of the static structs should proabably be part of
-// the permanent memory so that they can be stored on disk
-isa_global struct mouse_history
-{
-    bool LClicked = false;
-    bool RClicked = false;
-
-    scn_mouse_event Prev;
-    scn_mouse_event PrevLClick;
-    scn_mouse_event PrevRClick;
-
-    v2 PrevLClickPos;
-
-} MouseHistory;
-
 isa_internal scn_state *
 InitScnState(scn_mem *Mem)
 {
@@ -46,16 +31,18 @@ InitScnState(scn_mem *Mem)
             = IsaArenaCreate((u8 *)Mem->Permanent + sizeof(scn_state), Mem->PermanentMemSize - sizeof(scn_state));
         State->SessionArena = IsaArenaCreate((u8 *)Mem->Session, Mem->SessionMemSize);
 
-        const u64        MAX_NOTES      = 1024;
         note_collection *NoteCollection = IsaPushStructZero(&State->PermArena, note_collection);
-        NoteCollection->MaxCount        = MAX_NOTES;
-        NoteCollection->N               = IsaPushArray(&State->PermArena, note, MAX_NOTES);
+        NoteCollection->MaxCount        = 1024;
+        NoteCollection->N               = IsaPushArray(&State->PermArena, note, NoteCollection->MaxCount);
         State->Notes                    = NoteCollection;
 
-        size_t STBTT_MEM    = 2 << 25; // NOTE(ingar): Taken from one of the example programs
-        State->Stbtt        = IsaPushStructZero(&State->SessionArena, stbtt_ctx);
-        State->Stbtt->Arena = IsaPushStructZero(&State->SessionArena, isa_arena);
-        IsaArenaCreate(State->Stbtt->Arena, IsaArenaPush(&State->SessionArena, STBTT_MEM), STBTT_MEM);
+        State->MouseHistory = IsaPushStructZero(&State->PermArena, mouse_history);
+
+        State->Stbtt          = IsaPushStructZero(&State->SessionArena, stbtt_ctx);
+        State->Stbtt->MemSize = 2 << 25; // NOTE(ingar): Taken from one of the example programs
+        State->Stbtt->Arena   = IsaPushStructZero(&State->SessionArena, isa_arena);
+        IsaArenaCreate(State->Stbtt->Arena, IsaArenaPush(&State->SessionArena, State->Stbtt->MemSize),
+                       State->Stbtt->MemSize);
 
         Mem->Initialized = true;
     }
@@ -63,15 +50,7 @@ InitScnState(scn_mem *Mem)
     return State;
 }
 
-isa_internal u32_argb
-ArgbFromu32(u32 Color)
-{
-    u32_argb Result;
-    Result.U32 = Color;
-    return Result;
-}
-
-void
+isa_internal void
 FillNote(note *Note, rect Rect, u64 z, u32_argb Color)
 {
     Note->Rect  = Rect;
@@ -126,27 +105,38 @@ DrawRect(scn_offscreen_buffer Buffer, v2 Min, v2 Max, u32_argb Color)
 // handle events asynchronously
 extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 {
-    scn_state *ScnState = InitScnState(Mem);
+    scn_state     *ScnState     = InitScnState(Mem);
+    mouse_history *MouseHistory = ScnState->MouseHistory;
 
     // TODO(ingar): Convert to switch
     if(Event.Type == ScnMouseEvent_LDown)
     {
-        MouseHistory.LClicked      = true;
-        MouseHistory.PrevLClickPos = V2(Truncatei64ToFloat(Event.x), Truncatei64ToFloat(Event.y));
+        MouseHistory->LClicked      = true;
+        MouseHistory->PrevLClickPos = V2(Truncatei64ToFloat(Event.x), Truncatei64ToFloat(Event.y));
     }
     else if(Event.Type == ScnMouseEvent_RDown)
     {
-        MouseHistory.RClicked = true;
+        MouseHistory->RClicked      = true;
+        MouseHistory->PrevRClickPos = V2(Truncatei64ToFloat(Event.x), Truncatei64ToFloat(Event.y));
+    }
+
+    if(Event.Type == ScnMouseEvent_LUp)
+    {
+        if(MouseHistory->Prev.Type == ScnMouseEvent_Move)
+        {
+        }
+
+        MouseHistory->LClicked = false;
     }
 
     // TODO(ingar): Make sure that int->float->int conversions actually function correctly. I think there are
     // inaccuracies as it is now
-    if(Event.Type == ScnMouseEvent_LUp)
+    if(Event.Type == ScnMouseEvent_RUp)
     {
-        if(MouseHistory.Prev.Type == ScnMouseEvent_Move)
+        if(MouseHistory->Prev.Type == ScnMouseEvent_Move)
         {
-            float PrevX = MouseHistory.PrevLClickPos.x;
-            float PrevY = MouseHistory.PrevLClickPos.y;
+            float PrevX = MouseHistory->PrevRClickPos.x;
+            float PrevY = MouseHistory->PrevRClickPos.y;
 
             // TODO(ingar): The min v2 is not initialized properly. It is always set to 0,0
             rect NewRect = { V2(0, 0), V2(0, 0) };
@@ -179,20 +169,16 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 
             if(ScnState->Notes->Count < ScnState->Notes->MaxCount)
             {
+                // TODO(ingar): Bake the note number into the note and scale it to the note's size
                 FillNote(&ScnState->Notes->N[ScnState->Notes->Count++], NewRect, ScnState->Notes->z++,
                          U32Argb(255, 255, 255, 255));
             }
         }
 
-        MouseHistory.LClicked = false;
+        MouseHistory->RClicked = false;
     }
 
-    if(Event.Type == ScnMouseEvent_RUp)
-    {
-        MouseHistory.RClicked = false;
-    }
-
-    MouseHistory.Prev = Event;
+    MouseHistory->Prev = Event;
 }
 
 // NOTE(ingar): Man, this is overkill for this. Hoowee
