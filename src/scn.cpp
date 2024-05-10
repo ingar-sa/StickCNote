@@ -60,6 +60,11 @@ InitScnState(scn_mem *Mem)
         note_collection *NoteCollection = IsaPushStructZero(&State->Arena, note_collection);
         isa_arena       *NoteArena      = IsaPushStructZero(&State->Arena, isa_arena);
         IsaArenaCreate(NoteArena, IsaPushArray(&State->Arena, note, MAX_NOTES), MAX_NOTES * sizeof(note));
+        const u64        MAX_NOTES      = 1024;
+        note_collection *NoteCollection = IsaPushStructZero(&State->PermArena, note_collection);
+        NoteCollection->MaxCount        = MAX_NOTES;
+        NoteCollection->N               = IsaPushArray(&State->PermArena, note, MAX_NOTES);
+        State->Notes                    = NoteCollection;
 
         NoteCollection->MaxCount = MAX_NOTES;
         NoteCollection->Arena    = NoteArena;
@@ -77,6 +82,14 @@ ArgbFromu32(u32 Color)
     u32_argb Result;
     Result.U32 = Color;
     return Result;
+}
+
+void
+FillNote(note *Note, rect Rect, u64 z, u32_argb Color)
+{
+    Note->Rect  = Rect;
+    Note->z     = z;
+    Note->Color = Color;
 }
 
 isa_internal void
@@ -98,11 +111,11 @@ DrawRect(scn_offscreen_buffer Buffer, v2 Min, v2 Max, u32_argb Color)
     }
     if(EndX > Buffer.w)
     {
-        EndX = Buffer.w;
+        EndX = (i32)Buffer.w;
     }
     if(EndY > Buffer.h)
     {
-        EndY = Buffer.h;
+        EndY = (i32)Buffer.h;
     }
 
     i64 Pitch = Buffer.w * Buffer.BytesPerPixel;
@@ -120,12 +133,10 @@ DrawRect(scn_offscreen_buffer Buffer, v2 Min, v2 Max, u32_argb Color)
     }
 }
 
-// NOTE(ingar): Casey says that your code should not be split up in this way
-// the code that updates state and then renders should be executed
-// simultaneously so we might want to do that NOTE(ingar): This was also in the
-// context of games. Sinuce we're a traditional app we might have different
-// needs to handle events asynchronously
-
+// NOTE(ingar): Casey says that your code should not be split up in this way the code that updates state and then
+// renders should be executed simultaneously so we might want to do that
+// NOTE(ingar): This was also in the context of games. Sinuce we're a traditional app we might have different needs to
+// handle events asynchronously
 extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 {
     scn_state *ScnState = InitScnState(Mem);
@@ -134,7 +145,7 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
     if(Event.Type == ScnMouseEvent_LDown)
     {
         MouseHistory.LClicked      = true;
-        MouseHistory.PrevLClickPos = V2(Event.x, Event.y);
+        MouseHistory.PrevLClickPos = V2(Truncatei64ToFloat(Event.x), Truncatei64ToFloat(Event.y));
     }
     else if(Event.Type == ScnMouseEvent_RDown)
     {
@@ -147,8 +158,8 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
     {
         if(MouseHistory.Prev.Type == ScnMouseEvent_Move)
         {
-            i64 PrevX = MouseHistory.PrevLClickPos.x;
-            i64 PrevY = MouseHistory.PrevLClickPos.y;
+            float PrevX = MouseHistory.PrevLClickPos.x;
+            float PrevY = MouseHistory.PrevLClickPos.y;
 
             // TODO(ingar): The min v2 is not initialized properly. It is always set to 0,0
             rect NewRect = { V2(0, 0), V2(0, 0) };
@@ -175,18 +186,15 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
                 NewRect.max.y = (float)PrevY;
             }
 
-            // TODO(ingar): We need to push ui elements into memory which
-            // UpdateBackBuffer then iterates over and draws
             // TODO(ingar): Since the functions are ran on timers, this
             // probably means that we need synchronization mechanisms so that
             // new elements are not pushed simultaneously with the drawing
 
-            // TODO(ingar): Add bounds checking for z
-            // TODO(ingar): There seems to be a zero-width/height note pushed before any are drawn by the user
-            // TODO(ingar): There is overdraw when the window becomse less than the width or height of a note
-            note *NewNote = IsaPushStructZero(ScnState->Notes->Arena, note);
-            FillNote(NewNote, NewRect, ScnState->Notes->CurZ++, U32Argb(255, 255, 255, 255));
-            ScnState->Notes->Count++;
+            if(ScnState->Notes->Count < ScnState->Notes->MaxCount)
+            {
+                FillNote(&ScnState->Notes->N[ScnState->Notes->Count++], NewRect, ScnState->Notes->z++,
+                         U32Argb(255, 255, 255, 255));
+            }
         }
 
         MouseHistory.LClicked = false;
@@ -212,12 +220,11 @@ extern "C" UPDATE_BACK_BUFFER(UpdateBackBuffer)
 
     /* Draw background */
     // TODO(ingar): Check if background is already filled and skip drawing it?
-    DrawRect(Buffer, V2(0, 0), V2(Buffer.w, Buffer.h), Bg.Color);
+    DrawRect(Buffer, V2(0.0f, 0.0f), V2(Truncatei64ToFloat(Buffer.w), Truncatei64ToFloat(Buffer.h)), Bg.Color);
 
-    note *Notes = (note *)ScnState->Notes->Arena->Mem;
     for(u64 i = 0; i < ScnState->Notes->Count; ++i)
     {
-        note Note = Notes[i];
+        note Note = ScnState->Notes->N[i];
 
         // TODO(ingar): Same check as with the background?
         DrawRect(Buffer, Note.Rect.min, Note.Rect.max, Note.Color);

@@ -120,4 +120,11 @@ TruncateFloatToi64(float Float)
     return Result;
 }
 
+inline float
+Truncatei64ToFloat(i64 I64)
+{
+    float Result = (float)I64;
+    return Result;
+}
+
 #endif // SCN_INTRINSICS_H_

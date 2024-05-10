@@ -89,18 +89,17 @@ isa_global struct bg_landscape
 struct note
 {
     rect     Rect;
-    float    z;
+    u64      z;
     u32_argb Color;
-    // note    *Next;
 };
 
-void
-FillNote(note *Note, rect Rect, float z, u32_argb Color)
+struct note_collection
 {
-    Note->Rect  = Rect;
-    Note->z     = z;
-    Note->Color = Color;
-}
+    u64   MaxCount;
+    u64   Count;
+    u64   z;
+    note *N;
+};
 
 struct note_collection
 {
@@ -110,12 +109,8 @@ struct note_collection
     isa_arena *Arena;
 };
 
-// TODO(ingar): In order to reserve arenas for different purposes, we need to
-// keep track of where each arena is on the stack, as well as the next point
-// in memory that a new arena can be allocated is.
-// Due to the nature of arenas, we are limiting the number of items that can be
-// added when creating the arena. Since we technically should be able to handle
-// an "infinite" amount of entities, we have to find a way to support this.
+// NOTE(ingar): The items in the state that require a "substantial amount of memory will be pushed onto one of the
+// arenas instead of being part of the struct
 struct scn_state
 {
     isa_arena        Arena;
