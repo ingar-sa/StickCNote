@@ -1,7 +1,7 @@
-#include "../src/resources.hpp"
+#include "../src/win32/resources.h"
 #include "winver.h"
 
-IDI_APP_ICON ICON "icon_default.ico"
+IDI_APP_ICON ICON "logo-512.ico"
 
 
 VS_VERSION_INFO VERSIONINFO

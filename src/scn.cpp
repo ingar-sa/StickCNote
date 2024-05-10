@@ -122,6 +122,8 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 
     if(Event.Type == ScnMouseEvent_LUp)
     {
+        MouseHistory->LClicked = true;
+
         if(MouseHistory->Prev.Type == ScnMouseEvent_Move)
         {
         }

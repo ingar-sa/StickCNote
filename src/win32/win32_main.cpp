@@ -175,14 +175,13 @@ Win32UnloadScnCode(void)
     if(Scn.Dll)
     {
         FreeLibrary(Scn.Dll);
-        Scn.Dll = 0;
+        Scn.Dll = NULL;
     }
 
     Scn.CodeLoaded       = false;
     Scn.UpdateBackBuffer = NULL;
     Scn.RespondToMouse   = NULL;
     Scn.SeedRandPcg      = NULL;
-    // TODO(ingar): Set the other functions to null as well!!!
 }
 
 isa_internal bool

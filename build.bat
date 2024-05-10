@@ -18,7 +18,7 @@ set AppFileOutputs=/Fe%BuildFolder%\ /Fo%BuildFolder%\ /Fd%BuildFolder%\
 
 set Libs=user32.lib kernel32.lib gdi32.lib Shell32.lib
 
-set Resources="W:/StickCNote/resources/win32_resources.res"
+set Resources="./resources/win32_resources.res"
 
 set Includes=/I"src"
 
