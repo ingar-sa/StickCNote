@@ -8,6 +8,7 @@
 #include "consts.h"
 #include "isa.h"
 #include "scn_math.h"
+#include "stbtt_overrides.h"
 
 struct scn_mem
 {
@@ -101,11 +102,9 @@ struct note_collection
     note *N;
 };
 
-struct note_collection
+// TODO(ingar): Figure out how much memory stbtt uses. In the example programs 2^20 to 2^25 bytes are used.
+struct stbtt_ctx
 {
-    u64        MaxCount;
-    u64        Count;
-    float      CurZ;
     isa_arena *Arena;
 };
 
@@ -113,8 +112,11 @@ struct note_collection
 // arenas instead of being part of the struct
 struct scn_state
 {
-    isa_arena        Arena;
+    isa_arena        PermArena;
     note_collection *Notes;
+
+    isa_arena  SessionArena;
+    stbtt_ctx *Stbtt;
 };
 
 // TODO(ingar): Add (and figure out what it is) thread context

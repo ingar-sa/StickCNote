@@ -9,6 +9,11 @@ ISA_LOG_REGISTER(Scn);
 #include "win32/resources.h"
 #include "win32/win32_utils.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STBTT_STATIC
+#include "stbtt_overrides.h"
+#include "libs/stb_truetype.h"
+
 #include "consts.h"
 #include "scn_math.h"
 #include "scn_intrinsics.h"
@@ -29,46 +34,28 @@ isa_global struct mouse_history
 
 } MouseHistory;
 
-isa_internal void
-UpdateBg(u32_argb NewColor)
-{
-    Bg.Color = NewColor;
-}
-
-isa_internal void
-UpdateBgColorWhenDragging(bg_landscape *Landscape, i64 x, i64 y)
-{
-    Landscape->x += x;
-    Landscape->y += y;
-
-    Landscape->Color.r += (u8)(x / 128);
-    Landscape->Color.g += (u8)((x + y) / 128);
-    Landscape->Color.b += (u8)(y / 128);
-}
-
 isa_internal scn_state *
 InitScnState(scn_mem *Mem)
 {
     scn_state *State = (scn_state *)Mem->Permanent;
     if(!Mem->Initialized)
     {
-        State->Arena
+        // TODO(ingar): It would be nice to create a system where switching between pushing something onto the permanent
+        // or session arena could be done by changing something in a single place
+        State->PermArena
             = IsaArenaCreate((u8 *)Mem->Permanent + sizeof(scn_state), Mem->PermanentMemSize - sizeof(scn_state));
+        State->SessionArena = IsaArenaCreate((u8 *)Mem->Session, Mem->SessionMemSize);
 
-        const u32 MAX_NOTES = 1024;
-
-        note_collection *NoteCollection = IsaPushStructZero(&State->Arena, note_collection);
-        isa_arena       *NoteArena      = IsaPushStructZero(&State->Arena, isa_arena);
-        IsaArenaCreate(NoteArena, IsaPushArray(&State->Arena, note, MAX_NOTES), MAX_NOTES * sizeof(note));
         const u64        MAX_NOTES      = 1024;
         note_collection *NoteCollection = IsaPushStructZero(&State->PermArena, note_collection);
         NoteCollection->MaxCount        = MAX_NOTES;
         NoteCollection->N               = IsaPushArray(&State->PermArena, note, MAX_NOTES);
         State->Notes                    = NoteCollection;
 
-        NoteCollection->MaxCount = MAX_NOTES;
-        NoteCollection->Arena    = NoteArena;
-        State->Notes             = NoteCollection;
+        size_t STBTT_MEM    = 2 << 25; // NOTE(ingar): Taken from one of the example programs
+        State->Stbtt        = IsaPushStructZero(&State->SessionArena, stbtt_ctx);
+        State->Stbtt->Arena = IsaPushStructZero(&State->SessionArena, isa_arena);
+        IsaArenaCreate(State->Stbtt->Arena, IsaArenaPush(&State->SessionArena, STBTT_MEM), STBTT_MEM);
 
         Mem->Initialized = true;
     }
