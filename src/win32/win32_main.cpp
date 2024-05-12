@@ -42,10 +42,11 @@ isa_global struct scn
     HMODULE  Dll;
     FILETIME LastWriteTime;
 
-    bool                CodeLoaded;
-    update_back_buffer *UpdateBackBuffer;
-    respond_to_mouse   *RespondToMouse;
-    seed_rand_pcg      *SeedRandPcg; // TODO(ingar): This is overkill
+    bool                 CodeLoaded;
+    update_back_buffer  *UpdateBackBuffer;
+    respond_to_mouse    *RespondToMouse;
+    respond_to_keyboard *RespondToKeyboard;
+    seed_rand_pcg       *SeedRandPcg; // TODO(ingar): This is overkill
 
 } Scn;
 
@@ -178,10 +179,11 @@ Win32UnloadScnCode(void)
         Scn.Dll = NULL;
     }
 
-    Scn.CodeLoaded       = false;
-    Scn.UpdateBackBuffer = NULL;
-    Scn.RespondToMouse   = NULL;
-    Scn.SeedRandPcg      = NULL;
+    Scn.CodeLoaded        = false;
+    Scn.UpdateBackBuffer  = NULL;
+    Scn.RespondToMouse    = NULL;
+    Scn.RespondToKeyboard = NULL;
+    Scn.SeedRandPcg       = NULL;
 }
 
 isa_internal bool
@@ -203,21 +205,23 @@ Win32LoadScnCode(void) // TODO(ingar): Pass file path as argument?
         return false; // {0};
     }
 
-    update_back_buffer *UpdateBackbuffer = (update_back_buffer *)GetProcAddress(Dll, "UpdateBackBuffer");
-    respond_to_mouse   *RespondToMouse   = (respond_to_mouse *)GetProcAddress(Dll, "RespondToMouse");
-    seed_rand_pcg      *SeedRandPcg      = (seed_rand_pcg *)GetProcAddress(Dll, "SeedRandPcg");
+    update_back_buffer  *UpdateBackbuffer  = (update_back_buffer *)GetProcAddress(Dll, "UpdateBackBuffer");
+    respond_to_mouse    *RespondToMouse    = (respond_to_mouse *)GetProcAddress(Dll, "RespondToMouse");
+    respond_to_keyboard *RespondToKeyboard = (respond_to_keyboard *)GetProcAddress(Dll, "RespondToKeyboard");
+    seed_rand_pcg       *SeedRandPcg       = (seed_rand_pcg *)GetProcAddress(Dll, "SeedRandPcg");
 
-    if(!UpdateBackbuffer || !RespondToMouse || !SeedRandPcg)
+    if(!UpdateBackbuffer || !RespondToMouse || !RespondToKeyboard || !SeedRandPcg)
     {
         PrintLastError(TEXT("GetProcAddress"));
         return false; //{0};
     }
 
-    Scn.Dll              = Dll;
-    Scn.UpdateBackBuffer = UpdateBackbuffer;
-    Scn.RespondToMouse   = RespondToMouse;
-    Scn.SeedRandPcg      = SeedRandPcg;
-    Scn.CodeLoaded       = true;
+    Scn.Dll               = Dll;
+    Scn.UpdateBackBuffer  = UpdateBackbuffer;
+    Scn.RespondToMouse    = RespondToMouse;
+    Scn.RespondToKeyboard = RespondToKeyboard;
+    Scn.SeedRandPcg       = SeedRandPcg;
+    Scn.CodeLoaded        = true;
 
     return true;
 }
@@ -349,6 +353,106 @@ WmToMouseEventType(UINT Wm)
     }
 }
 
+isa_internal scn_keyboard_event_type
+MapVirtualKeyToScnEvent(WPARAM wParam)
+{
+    switch(wParam)
+    {
+        case 'A':
+            return ScnKeyboardEvent_A;
+        case 'B':
+            return ScnKeyboardEvent_B;
+        case 'C':
+            return ScnKeyboardEvent_C;
+        case 'D':
+            return ScnKeyboardEvent_D;
+        case 'E':
+            return ScnKeyboardEvent_E;
+        case 'F':
+            return ScnKeyboardEvent_F;
+        case 'G':
+            return ScnKeyboardEvent_G;
+        case 'H':
+            return ScnKeyboardEvent_H;
+        case 'I':
+            return ScnKeyboardEvent_I;
+        case 'J':
+            return ScnKeyboardEvent_J;
+        case 'K':
+            return ScnKeyboardEvent_K;
+        case 'L':
+            return ScnKeyboardEvent_L;
+        case 'M':
+            return ScnKeyboardEvent_M;
+        case 'N':
+            return ScnKeyboardEvent_N;
+        case 'O':
+            return ScnKeyboardEvent_O;
+        case 'P':
+            return ScnKeyboardEvent_P;
+        case 'Q':
+            return ScnKeyboardEvent_Q;
+        case 'R':
+            return ScnKeyboardEvent_R;
+        case 'S':
+            return ScnKeyboardEvent_S;
+        case 'T':
+            return ScnKeyboardEvent_T;
+        case 'U':
+            return ScnKeyboardEvent_U;
+        case 'V':
+            return ScnKeyboardEvent_V;
+        case 'W':
+            return ScnKeyboardEvent_W;
+        case 'X':
+            return ScnKeyboardEvent_X;
+        case 'Y':
+            return ScnKeyboardEvent_Y;
+        case 'Z':
+            return ScnKeyboardEvent_Z;
+
+        case '0':
+            return ScnKeyboardEvent_0;
+        case '1':
+            return ScnKeyboardEvent_1;
+        case '2':
+            return ScnKeyboardEvent_2;
+        case '3':
+            return ScnKeyboardEvent_3;
+        case '4':
+            return ScnKeyboardEvent_4;
+        case '5':
+            return ScnKeyboardEvent_5;
+        case '6':
+            return ScnKeyboardEvent_6;
+        case '7':
+            return ScnKeyboardEvent_7;
+        case '8':
+            return ScnKeyboardEvent_8;
+        case '9':
+            return ScnKeyboardEvent_9;
+
+        case VK_SHIFT:
+            return ScnKeyboardEvent_Shift;
+        case VK_CONTROL:
+            return ScnKeyboardEvent_Control;
+        case VK_SPACE:
+            return ScnKeyboardEvent_Spacebar;
+        case VK_MENU:
+            return ScnKeyboardEvent_Alt; // VK_MENU is the virtual key code for Alt
+        case VK_BACK:
+            return ScnKeyboardEvent_Back;
+        case VK_TAB:
+            return ScnKeyboardEvent_Tab;
+        case VK_RETURN:
+            return ScnKeyboardEvent_Return; // Enter
+
+        // Invalid key event
+        default:
+            return ScnKeyboardEvent_Invalid;
+    }
+}
+
 LRESULT CALLBACK
 Win32MainWindowCallback(HWND Window, UINT SystemMessage, WPARAM WParams, LPARAM LParams)
 {
@@ -465,7 +569,9 @@ Win32MainWindowCallback(HWND Window, UINT SystemMessage, WPARAM WParams, LPARAM 
         case WM_HOTKEY:
         case WM_KEYDOWN:
             {
-                // DebugPrint("A key was pressed down!\n");
+                scn_keyboard_event_type Type  = MapVirtualKeyToScnEvent(WParams);
+                scn_keyboard_event      Event = { Type };
+                Scn.RespondToKeyboard(&Scn.Mem, Event);
             }
             break;
 

@@ -14,7 +14,7 @@ union v2
 
 struct rect
 {
-    v2 min, max;
+    v2 Min, Max;
 };
 
 typedef v2 p2;
@@ -57,12 +57,28 @@ operator-(v2 &a)
 }
 
 inline bool
-InRect(float x, float y, rect r)
+InRect(rect r, float x, float y)
 {
-    bool InX = (x >= r.min.x) && (x <= r.max.x);
-    bool InY = (y >= r.min.y) && (y <= r.max.y);
+    bool InX = (x >= r.Min.x) && (x <= r.Max.x);
+    bool InY = (y >= r.Min.y) && (y <= r.Max.y);
 
     return (InX && InY);
+}
+
+// NOTE(ingar): I'm sorry, Casey ;_;
+template <typename T>
+inline T
+Clamp(T Value, T Min, T Max)
+{
+    if(Value < Min)
+    {
+        return Min;
+    }
+    if(Value > Max)
+    {
+        return Max;
+    }
+    return Value;
 }
 
 inline u32 *

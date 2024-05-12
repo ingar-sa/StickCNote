@@ -51,7 +51,7 @@ InitScnState(scn_mem *Mem)
 }
 
 isa_internal void
-FillNote(note *Note, rect Rect, u64 z, u32_argb Color)
+FillNote(note *Note, rect Rect, i64 z, u32_argb Color)
 {
     Note->Rect  = Rect;
     Note->z     = z;
@@ -61,28 +61,15 @@ FillNote(note *Note, rect Rect, u64 z, u32_argb Color)
 isa_internal void
 DrawRect(scn_offscreen_buffer Buffer, v2 Min, v2 Max, u32_argb Color)
 {
-    i32 StartX = RoundFloatToi32(Min.x);
-    i32 StartY = RoundFloatToi32(Min.y);
-    i32 EndX   = RoundFloatToi32(Max.x);
-    i32 EndY   = RoundFloatToi32(Max.y);
+    i64 StartX = RoundFloatToi64(Min.x);
+    i64 StartY = RoundFloatToi64(Min.y);
+    i64 EndX   = RoundFloatToi64(Max.x);
+    i64 EndY   = RoundFloatToi64(Max.y);
 
-    // Ensure StartX, StartY, EndX, EndY are within the buffer bounds
-    if(StartX < 0)
-    {
-        StartX = 0;
-    }
-    if(StartY < 0)
-    {
-        StartY = 0;
-    }
-    if(EndX > Buffer.w)
-    {
-        EndX = (i32)Buffer.w;
-    }
-    if(EndY > Buffer.h)
-    {
-        EndY = (i32)Buffer.h;
-    }
+    Clamp(StartX, 0LL, StartX);
+    Clamp(StartY, 0LL, StartY);
+    Clamp(EndX, EndX, Buffer.w);
+    Clamp(EndY, EndY, Buffer.h);
 
     i64 Pitch = Buffer.w * Buffer.BytesPerPixel;
     u8 *Row   = ((u8 *)Buffer.Mem) + (StartY * Pitch) + (StartX * Buffer.BytesPerPixel);
@@ -105,10 +92,11 @@ DrawRect(scn_offscreen_buffer Buffer, v2 Min, v2 Max, u32_argb Color)
 // handle events asynchronously
 extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 {
-    scn_state     *ScnState     = InitScnState(Mem);
-    mouse_history *MouseHistory = ScnState->MouseHistory;
+    scn_state       *ScnState     = InitScnState(Mem);
+    mouse_history   *MouseHistory = ScnState->MouseHistory;
+    note_collection *Notes        = ScnState->Notes;
 
-    // TODO(ingar): Convert to switch
+    /*                                DOWN                                           */
     if(Event.Type == ScnMouseEvent_LDown)
     {
         MouseHistory->LClicked      = true;
@@ -120,14 +108,37 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
         MouseHistory->PrevRClickPos = V2(Truncatei64ToFloat(Event.x), Truncatei64ToFloat(Event.y));
     }
 
+    /*                                  UP                                          */
     if(Event.Type == ScnMouseEvent_LUp)
     {
         MouseHistory->LClicked = true;
 
-        if(MouseHistory->Prev.Type == ScnMouseEvent_Move)
+        /* Select note */
+        if(MouseHistory->Prev.Type == ScnMouseEvent_LDown)
         {
-        }
+            bool ClickedOnRect = false;
+            /* Reverse iteration because we want the top-most note within the coordinates */
+            for(i64 i = Notes->Count; i > 0; --i)
+            {
+                note Note     = ScnState->Notes->N[i];
+                ClickedOnRect = InRect(Note.Rect, (float)Event.x, (float)Event.y);
+                if(ClickedOnRect)
+                {
+                    Notes->SelectedNote   = &Note;
+                    Notes->NoteIsSelected = true;
+                    break;
+                }
+            }
 
+#if 0
+            if(ClickedOnRect)
+            {
+                Notes->SelectedNote->z = ScnState->Notes->z++ + 1; /* Cursed C */
+                /* z actually has to be increased by 2, but the above code is too good not to leave in */
+                ScnState->Notes->z++;
+            }
+#endif
+        }
         MouseHistory->LClicked = false;
     }
 
@@ -145,24 +156,24 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 
             if(PrevX <= Event.x)
             {
-                NewRect.min.x = (float)PrevX;
-                NewRect.max.x = (float)Event.x;
+                NewRect.Min.x = (float)PrevX;
+                NewRect.Max.x = (float)Event.x;
             }
             else
             {
-                NewRect.min.x = (float)Event.x;
-                NewRect.max.x = (float)PrevX;
+                NewRect.Min.x = (float)Event.x;
+                NewRect.Max.x = (float)PrevX;
             }
 
             if(PrevY <= Event.y)
             {
-                NewRect.min.y = (float)PrevY;
-                NewRect.max.y = (float)Event.y;
+                NewRect.Min.y = (float)PrevY;
+                NewRect.Max.y = (float)Event.y;
             }
             else
             {
-                NewRect.min.y = (float)Event.y;
-                NewRect.max.y = (float)PrevY;
+                NewRect.Min.y = (float)Event.y;
+                NewRect.Max.y = (float)PrevY;
             }
 
             // TODO(ingar): Since the functions are ran on timers, this
@@ -171,9 +182,9 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 
             if(ScnState->Notes->Count < ScnState->Notes->MaxCount)
             {
-                // TODO(ingar): Bake the note number into the note and scale it to the note's size
+                // TODO(ingar): Bake the note number as text into the note and scale it to the note's size
                 FillNote(&ScnState->Notes->N[ScnState->Notes->Count++], NewRect, ScnState->Notes->z++,
-                         U32Argb(255, 255, 255, 255));
+                         U32Argb(GetRandu32()));
             }
         }
 
@@ -182,6 +193,133 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
 
     MouseHistory->Prev = Event;
 }
+
+extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboard)
+{
+    scn_state       *ScnState = InitScnState(Mem);
+    note_collection *Notes    = ScnState->Notes;
+
+    IsaLogInfo("Key %lu was pressed", Event.Type);
+    switch(Event.Type)
+    {
+        case ScnKeyboardEvent_A:
+            break;
+        case ScnKeyboardEvent_B:
+            break;
+        case ScnKeyboardEvent_C:
+            {
+                IsaLogInfo("C was pressed");
+                ScnState->Notes->Count = 0;
+                ScnState->Notes->z     = 0;
+            }
+            break;
+        case ScnKeyboardEvent_D:
+            {
+                if(Notes->NoteIsSelected)
+                {
+                    // TODO(ingar): Note pool!!! Again
+                }
+            }
+            break;
+        case ScnKeyboardEvent_E:
+            break;
+        case ScnKeyboardEvent_F:
+            break;
+        case ScnKeyboardEvent_G:
+            break;
+        case ScnKeyboardEvent_H:
+            break;
+        case ScnKeyboardEvent_I:
+            break;
+        case ScnKeyboardEvent_J:
+            break;
+        case ScnKeyboardEvent_K:
+            break;
+        case ScnKeyboardEvent_L:
+            break;
+        case ScnKeyboardEvent_M:
+            break;
+        case ScnKeyboardEvent_N:
+            break;
+        case ScnKeyboardEvent_O:
+            break;
+        case ScnKeyboardEvent_P:
+            break;
+        case ScnKeyboardEvent_Q:
+            break;
+        case ScnKeyboardEvent_R:
+            break;
+        case ScnKeyboardEvent_S:
+            break;
+        case ScnKeyboardEvent_T:
+            break;
+        case ScnKeyboardEvent_U:
+            break;
+        case ScnKeyboardEvent_V:
+            break;
+        case ScnKeyboardEvent_W:
+            break;
+        case ScnKeyboardEvent_X:
+            break;
+        case ScnKeyboardEvent_Y:
+            break;
+        case ScnKeyboardEvent_Z:
+            break;
+
+        case ScnKeyboardEvent_0:
+            break;
+        case ScnKeyboardEvent_1:
+            break;
+        case ScnKeyboardEvent_2:
+            break;
+        case ScnKeyboardEvent_3:
+            break;
+        case ScnKeyboardEvent_4:
+            break;
+        case ScnKeyboardEvent_5:
+            break;
+        case ScnKeyboardEvent_6:
+            break;
+        case ScnKeyboardEvent_7:
+            break;
+        case ScnKeyboardEvent_8:
+            break;
+        case ScnKeyboardEvent_9:
+            break;
+
+        case ScnKeyboardEvent_Shift:
+            break;
+        case ScnKeyboardEvent_Control:
+            break;
+        case ScnKeyboardEvent_Spacebar:
+            break;
+        case ScnKeyboardEvent_Alt:
+            break;
+        case ScnKeyboardEvent_Back:
+            break;
+        case ScnKeyboardEvent_Tab:
+            break;
+        case ScnKeyboardEvent_Return:
+            break;
+
+        case ScnKeyboardEvent_Invalid:
+            {
+                IsaLogError("Invalid keyboard event was triggered");
+            }
+            break;
+        default:
+            {
+                IsaAssert(0, "This should never happen!");
+            }
+            break;
+    }
+}
+
+/*
+To select a note, we have to iterate through all of them, but not only must we bounds check the x and y coordinate,
+we must check the z coordinate. This means that iterating *backwards* is ideal, since we will then always encounter
+the note with the highest z-coordinate first!
+ * */
 
 // NOTE(ingar): Man, this is overkill for this. Hoowee
 extern "C" SEED_RAND_PCG(SeedRandPcg)
@@ -195,13 +333,14 @@ extern "C" UPDATE_BACK_BUFFER(UpdateBackBuffer)
 
     /* Draw background */
     // TODO(ingar): Check if background is already filled and skip drawing it?
-    DrawRect(Buffer, V2(0.0f, 0.0f), V2(Truncatei64ToFloat(Buffer.w), Truncatei64ToFloat(Buffer.h)), Bg.Color);
+    DrawRect(Buffer, V2(0.0f, 0.0f), V2(Truncatei64ToFloat(Buffer.w), Truncatei64ToFloat(Buffer.h)),
+             U32Argb(SCN_BG_COLOR));
 
-    for(u64 i = 0; i < ScnState->Notes->Count; ++i)
+    for(i64 i = 0; i < ScnState->Notes->Count; ++i)
     {
         note Note = ScnState->Notes->N[i];
 
         // TODO(ingar): Same check as with the background?
-        DrawRect(Buffer, Note.Rect.min, Note.Rect.max, Note.Color);
+        DrawRect(Buffer, Note.Rect.Min, Note.Rect.Max, Note.Color);
     }
 }

@@ -8,7 +8,8 @@
 #include "consts.h"
 #include "isa.h"
 #include "scn_math.h"
-#include "stbtt_overrides.h"
+
+ISA_LOG_REGISTER(ScnH);
 
 struct scn_mem
 {
@@ -25,11 +26,72 @@ struct scn_mem
 // pointer being passed in from the platform layer?
 struct scn_offscreen_buffer
 {
-    i64 w;
-    i64 h;
-    i64 BytesPerPixel;
+    i64 w, h;
+    u64 BytesPerPixel;
 
     void *Mem;
+};
+
+enum scn_keyboard_event_type
+{
+    // Alphabet keys
+    // NOTE(ingar): There are no concepts of lower-case letters in Windows' virtual keys
+    // Virtual key overview: https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+    ScnKeyboardEvent_A,
+    ScnKeyboardEvent_B,
+    ScnKeyboardEvent_C,
+    ScnKeyboardEvent_D,
+    ScnKeyboardEvent_E,
+    ScnKeyboardEvent_F,
+    ScnKeyboardEvent_G,
+    ScnKeyboardEvent_H,
+    ScnKeyboardEvent_I,
+    ScnKeyboardEvent_J,
+    ScnKeyboardEvent_K,
+    ScnKeyboardEvent_L,
+    ScnKeyboardEvent_M,
+    ScnKeyboardEvent_N,
+    ScnKeyboardEvent_O,
+    ScnKeyboardEvent_P,
+    ScnKeyboardEvent_Q,
+    ScnKeyboardEvent_R,
+    ScnKeyboardEvent_S,
+    ScnKeyboardEvent_T,
+    ScnKeyboardEvent_U,
+    ScnKeyboardEvent_V,
+    ScnKeyboardEvent_W,
+    ScnKeyboardEvent_X,
+    ScnKeyboardEvent_Y,
+    ScnKeyboardEvent_Z,
+
+    // Number keys
+    ScnKeyboardEvent_0,
+    ScnKeyboardEvent_1,
+    ScnKeyboardEvent_2,
+    ScnKeyboardEvent_3,
+    ScnKeyboardEvent_4,
+    ScnKeyboardEvent_5,
+    ScnKeyboardEvent_6,
+    ScnKeyboardEvent_7,
+    ScnKeyboardEvent_8,
+    ScnKeyboardEvent_9,
+
+    // Special keys
+    ScnKeyboardEvent_Shift,
+    ScnKeyboardEvent_Control,
+    ScnKeyboardEvent_Spacebar,
+    ScnKeyboardEvent_Alt,
+    ScnKeyboardEvent_Back,
+    ScnKeyboardEvent_Tab,
+    ScnKeyboardEvent_Return,
+
+    // Invalid key event
+    ScnKeyboardEvent_Invalid,
+};
+
+struct scn_keyboard_event
+{
+    scn_keyboard_event_type Type;
 };
 
 enum scn_mouse_event_type
@@ -48,6 +110,19 @@ struct scn_mouse_event
 {
     scn_mouse_event_type Type;
     i64                  x, y;
+};
+
+struct mouse_history
+{
+    bool LClicked;
+    bool RClicked;
+
+    scn_mouse_event Prev;
+    scn_mouse_event PrevLClick;
+    scn_mouse_event PrevRClick;
+
+    v2 PrevLClickPos;
+    v2 PrevRClickPos;
 };
 
 // TODO(ingar): Add/convert float-based colors
@@ -71,30 +146,17 @@ U32Argb(u8 b, u8 g, u8 r, u8 a)
     return Color;
 }
 
+inline u32_argb
+U32Argb(u32 U32)
+{
+    u32_argb Color = { .U32 = U32 };
+    return Color;
+}
+
 struct gui_rect
 {
     rect     Dim;
     u32_argb Color;
-};
-
-isa_global struct bg_landscape
-{
-    u32_argb Color = { .U32 = (u32)PRUSSIAN_BLUE };
-    i64      x, y;
-
-} Bg;
-
-struct mouse_history
-{
-    bool LClicked = false;
-    bool RClicked = false;
-
-    scn_mouse_event Prev;
-    scn_mouse_event PrevLClick;
-    scn_mouse_event PrevRClick;
-
-    v2 PrevLClickPos;
-    v2 PrevRClickPos;
 };
 
 // TODO(ingar): NOTE to self. When dragging, there should be a partially transparent rectangle that shows what the note
@@ -103,16 +165,45 @@ struct mouse_history
 struct note
 {
     rect     Rect;
-    u64      z;
+    i64      z;
     u32_argb Color;
 };
+
+struct note_link
+{
+    note  Note;
+    note *Next;
+};
+
+struct note_linked_list
+{
+    note_link *Notes; // Fixed size
+    u64        Count, Cap;
+};
+
+note *
+AllocNoteLink(note_linked_list *List)
+{
+    IsaAssert(List->Count >= 0, "This doesn't print anything. ThAnk YOu mIcRosoFt");
+    if(List->Count < List->Cap)
+    {
+        note *Result;
+
+        return Result;
+    }
+
+    return nullptr;
+}
 
 struct note_collection
 {
     u64   MaxCount;
     u64   Count;
-    u64   z;
-    note *N;
+    i64   z;
+    note *SelectedNote;
+    bool  NoteIsSelected;
+
+    // note *N;
 };
 
 // TODO(ingar): Figure out how much memory stbtt uses. In the example programs 2^20 to 2^25 bytes are used.
@@ -152,6 +243,12 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouseStub)
     assert(0 /*RespondToMouseStub was called!*/);
 }
 
+#define RESPOND_TO_KEYBOARD(name) void name(scn_mem *Mem, scn_keyboard_event Event)
+typedef RESPOND_TO_KEYBOARD(respond_to_keyboard);
+extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboardStub)
+{
+    assert(0 /*RespondToKeyboardStub was called!*/);
+}
 // TODO(ingar): Is this way of doing this overkill?
 // NOTE(ingar): This really seems like overkill for this.
 // NOTE(ingar): This is overkill
