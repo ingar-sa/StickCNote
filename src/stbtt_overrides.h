@@ -14,6 +14,7 @@ StbttMalloc(size_t Size, stbtt_alloc_ctx *Ctx)
     return IsaArenaPush(Ctx->Arena, Size);
 }
 
+// TODO(ingar): lmao this aint gonna work. This only works if one allocation is made at a time.
 void
 StbttFree(void *Pointer, stbtt_alloc_ctx *Ctx)
 {

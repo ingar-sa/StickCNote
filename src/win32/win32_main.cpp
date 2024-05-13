@@ -440,17 +440,16 @@ MapVirtualKeyToScnEvent(WPARAM wParam)
         case VK_SPACE:
             return ScnKeyboardEvent_Spacebar;
         case VK_MENU:
-            return ScnKeyboardEvent_Alt; // VK_MENU is the virtual key code for Alt
+            return ScnKeyboardEvent_Alt;
         case VK_BACK:
             return ScnKeyboardEvent_Back;
         case VK_TAB:
             return ScnKeyboardEvent_Tab;
         case VK_RETURN:
-            return ScnKeyboardEvent_Return; // Enter
+            return ScnKeyboardEvent_Enter; // Enter
 
-        // Invalid key event
         default:
-            return ScnKeyboardEvent_Invalid;
+            return ScnKeyboardEvent_Unhandled;
     }
 }
 

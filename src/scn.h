@@ -83,10 +83,10 @@ enum scn_keyboard_event_type
     ScnKeyboardEvent_Alt,
     ScnKeyboardEvent_Back,
     ScnKeyboardEvent_Tab,
-    ScnKeyboardEvent_Return,
+    ScnKeyboardEvent_Enter,
 
     // Invalid key event
-    ScnKeyboardEvent_Invalid,
+    ScnKeyboardEvent_Unhandled,
 };
 
 struct scn_keyboard_event
@@ -198,7 +198,7 @@ struct scn_state
     mouse_history   *MouseHistory;
 
     isa_arena  SessionArena;
-    stbtt_ctx *Stbtt;
+    stbtt_ctx *Stbtt; // TODO(ingar): Might need to be in permanent memory
 };
 
 // TODO(ingar): Add (and figure out what it is) thread context
@@ -208,7 +208,7 @@ typedef UPDATE_BACK_BUFFER(update_back_buffer);
 extern "C" UPDATE_BACK_BUFFER(UpdateBackBufferStub)
 {
     // DebugPrint("UpdateBackBufferStub was called!\n");
-    assert(0 /*UpdateBackBufferStub was called!*/);
+    IsaAssert(0 /*UpdateBackBufferStub was called!*/);
 }
 
 #define RESPOND_TO_MOUSE(name) void name(scn_mem *Mem, scn_mouse_event Event)
@@ -216,14 +216,14 @@ typedef RESPOND_TO_MOUSE(respond_to_mouse);
 extern "C" RESPOND_TO_MOUSE(RespondToMouseStub)
 {
     // DebugPrint("RespondToMouseStub was called!\n");
-    assert(0 /*RespondToMouseStub was called!*/);
+    IsaAssert(0 /*RespondToMouseStub was called!*/);
 }
 
 #define RESPOND_TO_KEYBOARD(name) void name(scn_mem *Mem, scn_keyboard_event Event)
 typedef RESPOND_TO_KEYBOARD(respond_to_keyboard);
 extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboardStub)
 {
-    assert(0 /*RespondToKeyboardStub was called!*/);
+    IsaAssert(0 /*RespondToKeyboardStub was called!*/);
 }
 // TODO(ingar): Is this way of doing this overkill?
 // NOTE(ingar): This really seems like overkill for this.
@@ -233,7 +233,7 @@ typedef SEED_RAND_PCG(seed_rand_pcg);
 extern "C" SEED_RAND_PCG(SeedRandPcgStub)
 {
     // DebugPrint("RespondToMouseStub was called!\n");
-    assert(0 /*SeedRandPcgStub was called!*/);
+    IsaAssert(0 /*SeedRandPcgStub was called!*/);
 }
 
 #endif // SCN_H_

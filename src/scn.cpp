@@ -299,12 +299,12 @@ extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboard)
             break;
         case ScnKeyboardEvent_Tab:
             break;
-        case ScnKeyboardEvent_Return:
+        case ScnKeyboardEvent_Enter:
             break;
 
-        case ScnKeyboardEvent_Invalid:
+        case ScnKeyboardEvent_Unhandled:
             {
-                IsaLogError("Invalid keyboard event was triggered");
+                IsaLogError("Unhandled keyboard event was triggered");
             }
             break;
         default:
@@ -314,12 +314,6 @@ extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboard)
             break;
     }
 }
-
-/*
-To select a note, we have to iterate through all of them, but not only must we bounds check the x and y coordinate,
-we must check the z coordinate. This means that iterating *backwards* is ideal, since we will then always encounter
-the note with the highest z-coordinate first!
- * */
 
 // NOTE(ingar): Man, this is overkill for this. Hoowee
 extern "C" SEED_RAND_PCG(SeedRandPcg)
