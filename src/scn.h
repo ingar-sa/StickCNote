@@ -166,7 +166,7 @@ struct note
 {
     rect Rect;
     // TODO(ingar): Turn this into a u64?
-    i64      z;
+    u64      z;
     u64      CollectionPos;
     u32_argb Color;
 };
@@ -175,7 +175,6 @@ struct note_collection
 {
     u64 MaxCount;
     u64 Count;
-    i64 TopZ;
 
     note *SelectedNote;
     bool  NoteIsSelected;

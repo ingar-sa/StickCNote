@@ -53,7 +53,7 @@ InitScnState(scn_mem *Mem)
 }
 
 isa_internal void
-FillNote(note *Note, rect Rect, i64 z, u32_argb Color)
+FillNote(note *Note, rect Rect, u64 z, u32_argb Color)
 {
     Note->Rect  = Rect;
     Note->z     = z;
@@ -166,7 +166,8 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
             if(Notes->Count < Notes->MaxCount)
             {
                 // TODO(ingar): Bake the note number as text into the note and scale it to the note's size
-                FillNote(Notes->N + Notes->Count++, NewRect, Notes->TopZ++, U32Argb(GetRandu32()));
+                u64 z = Notes->Count++;
+                FillNote(Notes->N + z, NewRect, z, U32Argb(GetRandu32()));
             }
         }
 
@@ -194,7 +195,6 @@ extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboard)
                 IsaLogInfo("C was pressed");
 
                 Notes->Count          = 0;
-                Notes->TopZ           = 0;
                 Notes->NoteIsSelected = false;
                 Notes->SelectedNote   = nullptr;
             }
@@ -206,7 +206,7 @@ extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboard)
                 if(Notes->NoteIsSelected)
                 {
                     note *ToDelete = Notes->SelectedNote;
-                    if(Notes->Count > 1 && (ToDelete->z < (Notes->TopZ - 1)))
+                    if(Notes->Count > 1 && (ToDelete->z < (Notes->Count - 1)))
                     {
                         for(i64 i = ToDelete->z; i < (i64)Notes->Count; ++i)
                         {
@@ -215,7 +215,6 @@ extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboard)
                         }
                     }
 
-                    Notes->TopZ--;
                     Notes->Count--;
                     Notes->NoteIsSelected = false;
                     Notes->SelectedNote   = nullptr;
