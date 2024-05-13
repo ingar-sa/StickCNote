@@ -3,6 +3,8 @@
  */
 
 #include "isa.h"
+#include <cstdint>
+#include <cstring>
 
 ISA_LOG_REGISTER(Scn);
 
@@ -96,63 +98,44 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
     mouse_history   *MouseHistory = ScnState->MouseHistory;
     note_collection *Notes        = ScnState->Notes;
 
-    /*                                DOWN                                           */
     if(Event.Type == ScnMouseEvent_LDown)
     {
-        MouseHistory->LClicked      = true;
         MouseHistory->PrevLClickPos = V2(Truncatei64ToFloat(Event.x), Truncatei64ToFloat(Event.y));
     }
     else if(Event.Type == ScnMouseEvent_RDown)
     {
-        MouseHistory->RClicked      = true;
         MouseHistory->PrevRClickPos = V2(Truncatei64ToFloat(Event.x), Truncatei64ToFloat(Event.y));
     }
-
-    /*                                  UP                                          */
-    if(Event.Type == ScnMouseEvent_LUp)
+    else if(Event.Type == ScnMouseEvent_LUp)
     {
-        MouseHistory->LClicked = true;
-
         /* Select note */
         if(MouseHistory->Prev.Type == ScnMouseEvent_LDown)
         {
             bool ClickedOnRect = false;
             /* Reverse iteration because we want the top-most note within the coordinates */
-            for(i64 i = Notes->Count; i > 0; --i)
+            for(i64 i = Notes->Count - 1; i >= 0; --i)
             {
-                note Note     = ScnState->Notes->N[i];
-                ClickedOnRect = InRect(Note.Rect, (float)Event.x, (float)Event.y);
+                note *Note    = Notes->N + i;
+                ClickedOnRect = InRect(Note->Rect, (float)Event.x, (float)Event.y);
                 if(ClickedOnRect)
                 {
-                    Notes->SelectedNote   = &Note;
-                    Notes->NoteIsSelected = true;
+                    Notes->NoteIsSelected = (Notes->SelectedNote == Note);
+                    Notes->SelectedNote   = Note;
                     break;
                 }
             }
-
-#if 0
-            if(ClickedOnRect)
-            {
-                Notes->SelectedNote->z = ScnState->Notes->z++ + 1; /* Cursed C */
-                /* z actually has to be increased by 2, but the above code is too good not to leave in */
-                ScnState->Notes->z++;
-            }
-#endif
         }
-        MouseHistory->LClicked = false;
-    }
 
-    // TODO(ingar): Make sure that int->float->int conversions actually function correctly. I think there are
-    // inaccuracies as it is now
-    if(Event.Type == ScnMouseEvent_RUp)
+        MouseHistory->LClicked = true;
+        MouseHistory->RClicked = false;
+    }
+    else if(Event.Type == ScnMouseEvent_RUp)
     {
         if(MouseHistory->Prev.Type == ScnMouseEvent_Move)
         {
-            float PrevX = MouseHistory->PrevRClickPos.x;
-            float PrevY = MouseHistory->PrevRClickPos.y;
-
-            // TODO(ingar): The min v2 is not initialized properly. It is always set to 0,0
-            rect NewRect = { V2(0, 0), V2(0, 0) };
+            float PrevX   = MouseHistory->PrevRClickPos.x;
+            float PrevY   = MouseHistory->PrevRClickPos.y;
+            rect  NewRect = { V2(0, 0), V2(0, 0) };
 
             if(PrevX <= Event.x)
             {
@@ -180,15 +163,15 @@ extern "C" RESPOND_TO_MOUSE(RespondToMouse)
             // probably means that we need synchronization mechanisms so that
             // new elements are not pushed simultaneously with the drawing
 
-            if(ScnState->Notes->Count < ScnState->Notes->MaxCount)
+            if(Notes->Count < Notes->MaxCount)
             {
                 // TODO(ingar): Bake the note number as text into the note and scale it to the note's size
-                FillNote(&ScnState->Notes->N[ScnState->Notes->Count++], NewRect, ScnState->Notes->z++,
-                         U32Argb(GetRandu32()));
+                FillNote(Notes->N + Notes->Count++, NewRect, Notes->TopZ++, U32Argb(GetRandu32()));
             }
         }
 
-        MouseHistory->RClicked = false;
+        MouseHistory->RClicked = true;
+        MouseHistory->LClicked = false;
     }
 
     MouseHistory->Prev = Event;
@@ -209,15 +192,33 @@ extern "C" RESPOND_TO_KEYBOARD(RespondToKeyboard)
         case ScnKeyboardEvent_C:
             {
                 IsaLogInfo("C was pressed");
-                ScnState->Notes->Count = 0;
-                ScnState->Notes->z     = 0;
+
+                Notes->Count          = 0;
+                Notes->TopZ           = 0;
+                Notes->NoteIsSelected = false;
+                Notes->SelectedNote   = nullptr;
             }
             break;
         case ScnKeyboardEvent_D:
             {
+                IsaLogInfo("D was pressed");
+
                 if(Notes->NoteIsSelected)
                 {
-                    // TODO(ingar): Note pool!!! Again
+                    note *ToDelete = Notes->SelectedNote;
+                    if(Notes->Count > 1 && (ToDelete->z < (Notes->TopZ - 1)))
+                    {
+                        for(i64 i = ToDelete->z; i < (i64)Notes->Count; ++i)
+                        {
+                            memcpy(Notes->N + i, Notes->N + (i + 1), sizeof(note));
+                            (Notes->N + i)->z--;
+                        }
+                    }
+
+                    Notes->TopZ--;
+                    Notes->Count--;
+                    Notes->NoteIsSelected = false;
+                    Notes->SelectedNote   = nullptr;
                 }
             }
             break;
@@ -336,7 +337,7 @@ extern "C" UPDATE_BACK_BUFFER(UpdateBackBuffer)
     DrawRect(Buffer, V2(0.0f, 0.0f), V2(Truncatei64ToFloat(Buffer.w), Truncatei64ToFloat(Buffer.h)),
              U32Argb(SCN_BG_COLOR));
 
-    for(i64 i = 0; i < ScnState->Notes->Count; ++i)
+    for(u64 i = 0; i < ScnState->Notes->Count; ++i)
     {
         note Note = ScnState->Notes->N[i];
 

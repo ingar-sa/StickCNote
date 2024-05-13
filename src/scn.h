@@ -9,7 +9,7 @@
 #include "isa.h"
 #include "scn_math.h"
 
-ISA_LOG_REGISTER(ScnH);
+ISA_LOG_DECLARE_SAME_TU;
 
 struct scn_mem
 {
@@ -164,46 +164,23 @@ struct gui_rect
 // scrolling while choosing the color.
 struct note
 {
-    rect     Rect;
+    rect Rect;
+    // TODO(ingar): Turn this into a u64?
     i64      z;
+    u64      CollectionPos;
     u32_argb Color;
 };
 
-struct note_link
-{
-    note  Note;
-    note *Next;
-};
-
-struct note_linked_list
-{
-    note_link *Notes; // Fixed size
-    u64        Count, Cap;
-};
-
-note *
-AllocNoteLink(note_linked_list *List)
-{
-    IsaAssert(List->Count >= 0, "This doesn't print anything. ThAnk YOu mIcRosoFt");
-    if(List->Count < List->Cap)
-    {
-        note *Result;
-
-        return Result;
-    }
-
-    return nullptr;
-}
-
 struct note_collection
 {
-    u64   MaxCount;
-    u64   Count;
-    i64   z;
+    u64 MaxCount;
+    u64 Count;
+    i64 TopZ;
+
     note *SelectedNote;
     bool  NoteIsSelected;
 
-    // note *N;
+    note *N;
 };
 
 // TODO(ingar): Figure out how much memory stbtt uses. In the example programs 2^20 to 2^25 bytes are used.
