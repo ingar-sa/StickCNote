@@ -278,6 +278,7 @@ Win32AddTrayIcon(HWND Window)
     Shell_NotifyIcon(NIM_ADD, &IconData);
 }
 
+// TODO(ingar): Don't do shit! thank you microsoft.
 isa_internal void
 Win32RemoveTrayIcon()
 {
@@ -500,6 +501,7 @@ Win32MainWindowCallback(HWND Window, UINT SystemMessage, WPARAM WParams, LPARAM 
                 {
                     case ID_TRAY_EXIT:
                         {
+                            Win32RemoveTrayIcon();
                             PostQuitMessage(0);
                         }
                         break;
@@ -532,6 +534,7 @@ Win32MainWindowCallback(HWND Window, UINT SystemMessage, WPARAM WParams, LPARAM 
                 Win32AddTrayIcon(Window);
                 ShowWindow(Window, SW_HIDE);
                 */
+                Win32RemoveTrayIcon();
                 PostQuitMessage(0);
             }
             break;
@@ -539,6 +542,7 @@ Win32MainWindowCallback(HWND Window, UINT SystemMessage, WPARAM WParams, LPARAM 
         case WM_DESTROY:
             {
                 // TODO(ingar): Handle this as an error - recreate window?
+                Win32RemoveTrayIcon();
                 PostQuitMessage(0);
             }
             break;
