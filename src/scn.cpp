@@ -13,7 +13,7 @@ ISA_LOG_REGISTER(Scn);
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #define STBTT_STATIC
-#include "stbtt_overrides.h"
+// #include "stbtt_overrides.h" // TODO(ingar): Need to make an allocator that will be able to replace malloc
 #include "libs/stb_truetype.h"
 
 #include "consts.h"
