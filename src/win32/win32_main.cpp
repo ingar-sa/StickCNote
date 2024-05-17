@@ -446,7 +446,7 @@ MapVirtualKeyToScnEvent(WPARAM wParam)
         case VK_TAB:
             return ScnKeyboardEvent_Tab;
         case VK_RETURN:
-            return ScnKeyboardEvent_Enter; // Enter
+            return ScnKeyboardEvent_Enter;
 
         default:
             return ScnKeyboardEvent_Unhandled;
